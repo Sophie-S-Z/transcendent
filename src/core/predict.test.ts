@@ -93,3 +93,11 @@ describe('rankActions', () => {
     expect(ids(ws, { 'mail:delete': 1e9 }).at(-1)).toBe('delete:mail-pharmacy')
   })
 })
+
+describe('rankActions after a note search', () => {
+  it('ranks the matching note first', () => {
+    let ws = applyAction(sampleWorkspace(), { id: 'go:notes' })
+    ws = applyAction(ws, { id: 'search:notes', text: 'medicine' })
+    expect(rankActions(ws, {})[0].id).toBe('open:note-doctor')
+  })
+})

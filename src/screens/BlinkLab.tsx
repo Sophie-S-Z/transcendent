@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import {
   calibrate,
-  DEFAULT_CONFIG,
   HOLD_MAX_MS,
   HOLD_MIN_MS,
   initialBlink,
@@ -30,8 +29,9 @@ const PROMPT: Record<Stage['name'], string> = {
   failed: 'Calibration did not find a clear held blink. Try again with more light.',
 }
 
-export function BlinkLab() {
-  const [cfg, setCfg] = useState<BlinkConfig>(DEFAULT_CONFIG)
+/** Calibration (T1) and the Gate A reading test. onDone receives the blink settings to keep. */
+export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (cfg: BlinkConfig) => void }) {
+  const [cfg, setCfg] = useState(initial)
   const [stage, setStage] = useState<Stage>({ name: 'idle' })
   const [frame, setFrame] = useState<FaceFrame | null>(null)
   const [progress, setProgress] = useState(0)
@@ -96,7 +96,7 @@ export function BlinkLab() {
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 p-8">
       <header className="flex items-baseline justify-between">
-        <h1 className="text-4xl font-bold">Transcendent: blink test</h1>
+        <h1 className="text-4xl font-bold">Blink calibration</h1>
         <span className="font-mono text-muted">{status === 'ready' ? 'Camera on' : status === 'loading' ? 'Loading' : 'Error'}</span>
       </header>
 
@@ -136,6 +136,9 @@ export function BlinkLab() {
           </button>
           <button disabled={busy || status !== 'ready'} onClick={startReading} className={buttonClass(false)}>
             Start 5-minute reading test
+          </button>
+          <button disabled={busy} onClick={() => onDone(cfg)} className={buttonClass(false)}>
+            Save and close
           </button>
         </div>
         <label className="flex items-center gap-4">

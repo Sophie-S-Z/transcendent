@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { sampleWorkspace } from '../core/sample'
 import { applyAction, type Workspace } from '../core/workspace'
 import { median, savingPct, summarize, toCsv, type TaskRecord } from './log'
-import { helpDone, TASKS } from './tasks'
+import { HELP_TESTS, helpDone, TASKS } from './tasks'
 
 type Step = [id: string, text?: string]
 const run = (steps: Step[]) => steps.reduce((ws: Workspace, [id, text]) => applyAction(ws, { id, text }), sampleWorkspace())
 
-const SCRIPTS: Record<number, Step[]> = {
+const SCRIPTS: Record<number | string, Step[]> = {
   1: [['open:mail-lunch'], ['accept:mail-lunch']],
   2: [['open:mail-bookclub'], ['decline:mail-bookclub', 'I have a doctor visit then.']],
   3: [['go:messages'], ['open:thread-caregiver'], ['reply:thread-caregiver', 'I need water.']],
@@ -32,6 +32,15 @@ describe('tasks', () => {
   it('rejects a short decline reason and a wrong answer to Mom', () => {
     expect(TASKS[1].done(run([['open:mail-bookclub'], ['decline:mail-bookclub', 'Too busy.']]))).toBe(false)
     expect(TASKS[8].done(run([['go:messages'], ['open:thread-mom'], ['reply:thread-mom', 'I love you, Mom.']]))).toBe(false)
+  })
+
+  it('starts each help test in a different state, and one help action completes it', () => {
+    const views = HELP_TESTS.map((t) => JSON.stringify(t.start().view))
+    expect(new Set(views).size).toBe(5)
+    for (const t of HELP_TESTS) {
+      expect(t.done(t.start())).toBe(false)
+      expect(t.done(applyAction(t.start(), { id: 'help:thread-caregiver' }))).toBe(true)
+    }
   })
 
   it('helpDone is true after Call for help', () => {

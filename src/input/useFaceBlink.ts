@@ -26,10 +26,10 @@ function blinkScore(result: ReturnType<FaceLandmarker['detectForVideo']>): numbe
 
 /**
  * Opens the camera and runs Face Landmarker on each new video frame, on the device.
- * Calls onFrame with the blink score, or null when no face is in view.
+ * Calls onFrame with the blink score, or null when no face is in view. Does nothing when enabled is false.
  * No frame leaves the browser.
  */
-export function useFaceBlink(onFrame: (f: FaceFrame) => void) {
+export function useFaceBlink(onFrame: (f: FaceFrame) => void, enabled = true) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [status, setStatus] = useState<FaceStatus>('loading')
   const [error, setError] = useState('')
@@ -39,6 +39,7 @@ export function useFaceBlink(onFrame: (f: FaceFrame) => void) {
   })
 
   useEffect(() => {
+    if (!enabled) return
     let stopped = false
     let stream: MediaStream | undefined
     let landmarker: FaceLandmarker | undefined
@@ -78,7 +79,7 @@ export function useFaceBlink(onFrame: (f: FaceFrame) => void) {
       stream?.getTracks().forEach((track) => track.stop())
       landmarker?.close()
     }
-  }, [])
+  }, [enabled])
 
   return { videoRef, status, error }
 }

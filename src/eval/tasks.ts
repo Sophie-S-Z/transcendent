@@ -1,9 +1,17 @@
 // The 10 evaluation tasks. Each task starts from sampleWorkspace(). done() is true when the tester finished the task.
 
 import { sampleWorkspace } from '../core/sample'
-import { CAREGIVER, HELP_TEXT, words, type Workspace } from '../core/workspace'
+import { applyAction, CAREGIVER, HELP_TEXT, words, type Workspace } from '../core/workspace'
 
-export type Task = { id: number; title: string; instruction: string; done: (ws: Workspace) => boolean }
+export type Task = {
+  id: number | string
+  title: string
+  instruction: string
+  /** The state at the start of the task. */
+  start: () => Workspace
+  /** The automatic completion check. */
+  done: (ws: Workspace) => boolean
+}
 
 /** Lower case, no punctuation, single spaces. Use it to compare text. */
 export const normalize = (s: string) => words(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '')).join(' ')
@@ -16,7 +24,7 @@ const lastFromMe = (ws: Workspace, threadId: string) =>
     .at(-1)?.text ?? ''
 const SAMPLE_NOTES = new Set(sampleWorkspace().notes.map((n) => n.id))
 
-export const TASKS: Task[] = [
+const TASK_LIST: Omit<Task, 'start'>[] = [
   {
     id: 1,
     title: 'Accept an invitation',
@@ -87,3 +95,23 @@ export function helpDone(ws: Workspace): boolean {
   const last = ws.threads.find((t) => t.id === CAREGIVER)?.messages.at(-1)
   return last?.from === 'me' && last.text === HELP_TEXT
 }
+
+export const TASKS: Task[] = TASK_LIST.map((t) => ({ ...t, start: sampleWorkspace }))
+
+/** Applies a list of action IDs to the sample state. */
+const after = (...ids: string[]) => () => ids.reduce((ws, id) => applyAction(ws, { id, text: 'medicine' }), sampleWorkspace())
+
+/** "Call for help" from 5 different states (T11). */
+export const HELP_TESTS: Task[] = [
+  after(),
+  after('open:mail-lunch'),
+  after('go:messages', 'open:thread-mom'),
+  after('go:calendar'),
+  after('go:notes', 'search:notes'),
+].map((start, i) => ({
+  id: `help-${i + 1}`,
+  title: `Call for help, state ${i + 1}`,
+  instruction: 'Call for help.',
+  start,
+  done: helpDone,
+}))

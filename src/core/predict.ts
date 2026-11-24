@@ -35,7 +35,8 @@ function score(ws: Workspace, a: Action, goUseful: boolean): number {
     case 'open':
       if (a.app === 'mail') return mail?.unread ? 30 : 20
       if (a.app === 'messages') return ws.threads.find((t) => t.id === a.target)?.messages.at(-1)?.from === 'them' ? 30 : 20
-      return 20
+      // After a search, the matching notes are the most probable next step.
+      return ws.view.query ? 45 : 20
     case 'toggle-todo':
       return ws.todos.find((t) => t.id === a.target)?.done ? 5 : 30
     case 'search':
