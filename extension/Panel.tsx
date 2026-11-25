@@ -3,6 +3,7 @@
 // The page reader lists the valid actions. The ranker only orders that list.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { rankTier0 } from '../src/core/actions'
+import { toCsv } from '../src/core/csv'
 import { loadEngine, rankList, type Engine } from '../src/core/tier1'
 import { DEFAULT_CONFIG, type BlinkConfig } from '../src/input/blink'
 import { useSignal } from '../src/input/useSignal'
@@ -18,7 +19,6 @@ import {
   GROUPS,
   mergeRanking,
   PAYMENT_NOTICE,
-  toCsv,
   type LogRow,
   type PageAction,
   type PageState,
@@ -224,7 +224,7 @@ function Setup({
   const set = (patch: Partial<Settings>) => onSettings({ ...settings, ...patch })
   const exportCsv = () => {
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([toCsv(log)], { type: 'text/csv' }))
+    a.href = URL.createObjectURL(new Blob([toCsv(['time', 'site', 'label', 'risk'], log.map((r) => [r.time, r.site, r.label, r.risk]))], { type: 'text/csv' }))
     a.download = 'transcendent-log.csv'
     a.click()
     URL.revokeObjectURL(a.href)

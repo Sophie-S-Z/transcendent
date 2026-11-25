@@ -3,6 +3,7 @@ import { calibrate, DEFAULT_CONFIG, heldBlinkDone, initialBlink, stepBlink, type
 import { useFaceBlink } from '../../src/input/useFaceBlink'
 import { Ring } from '../../src/ui/Ring'
 import { stepHold, type Hold } from '../../src/input/hold'
+import { Predict } from './Predict'
 
 declare global {
   interface Window {
@@ -13,10 +14,16 @@ declare global {
 // The keys that the Rust command accepts.
 const KEYS = ['Space', 'Enter'] as const
 type Key = (typeof KEYS)[number]
-type Saved = { blink: BlinkConfig; key: Key; calibrated: boolean }
+// Switch stays the default mode until Predict mode passes a test on Windows.
+type Mode = 'switch' | 'predict'
+type Saved = { blink: BlinkConfig; key: Key; calibrated: boolean; mode: Mode }
 
 const STORE = 'transcendent.switch'
-const DEFAULTS: Saved = { blink: DEFAULT_CONFIG, key: 'Space', calibrated: false }
+const DEFAULTS: Saved = { blink: DEFAULT_CONFIG, key: 'Space', calibrated: false, mode: 'switch' }
+const MODES: [Mode, string][] = [
+  ['switch', 'Switch'],
+  ['predict', 'Predict'],
+]
 
 function load(): Saved {
   try {
@@ -35,9 +42,39 @@ const PROMPT: Record<Stage, string> = {
   held: 'Close your eyes for 1 second, then open them.',
 }
 
-/** The switch window: one held blink sends one key press to the whole system. */
+/** The window: Switch mode or Predict mode. Only one mode uses the camera at a time. */
 export function App() {
   const [saved, setSaved] = useState(load)
+  const save = (next: Saved) => {
+    setSaved(next)
+    localStorage.setItem(STORE, JSON.stringify(next))
+  }
+  return (
+    <main className="flex h-dvh flex-col gap-3 overflow-hidden p-4 select-none">
+      <div className="flex gap-2">
+        {MODES.map(([mode, label]) => (
+          <button
+            key={mode}
+            onClick={() => save({ ...saved, mode })}
+            className={`btn min-h-10 flex-1 px-3 text-base ${saved.mode === mode ? 'lit' : 'btn-ghost'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {saved.mode === 'switch' ? (
+        <Switch saved={saved} save={save} />
+      ) : saved.calibrated ? (
+        <Predict blink={saved.blink} />
+      ) : (
+        <p className="leading-snug">Calibrate in Switch mode before you use Predict mode.</p>
+      )}
+    </main>
+  )
+}
+
+/** Switch mode: one held blink sends one key press to the whole system. */
+function Switch({ saved, save }: { saved: Saved; save: (next: Saved) => void }) {
   const [calib, setCalib] = useState<{ stage: Stage; start: number } | null>(null)
   const [failed, setFailed] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -48,11 +85,6 @@ export function App() {
   const blink = useRef(initialBlink)
   const hold = useRef<Hold>({ start: 0, toggled: false })
   const samples = useRef<Record<Stage, Sample[]>>({ natural: [], down: [], held: [] })
-
-  const save = (next: Saved) => {
-    setSaved(next)
-    localStorage.setItem(STORE, JSON.stringify(next))
-  }
 
   // The window must not act on the key that it sends, for example when a button has focus.
   useEffect(() => {
@@ -126,7 +158,7 @@ export function App() {
                 : `Hold a blink to press “${saved.key}”. Hold 3 s to pause.`
 
   return (
-    <main className="flex h-dvh flex-col gap-3 overflow-hidden p-4 select-none">
+    <>
       <div className="flex items-center justify-between gap-3">
         <video ref={videoRef} muted playsInline className="h-[105px] w-[140px] -scale-x-100 rounded-lg bg-surface object-cover" />
         <div className={paused ? 'opacity-40' : ''}>
@@ -139,7 +171,7 @@ export function App() {
       </p>
       <p className="min-h-[3em] leading-snug">{message}</p>
       {error && <p className="text-sm text-accent">{error}</p>}
-      <div className="mt-auto flex gap-2">
+      <div className="flex gap-2">
         <button disabled={!!calib} onClick={() => setPaused(!paused)} className="btn lit flex-1 px-3">
           {paused ? 'Resume' : 'Pause'}
         </button>
@@ -159,6 +191,6 @@ export function App() {
           ))}
         </select>
       </label>
-    </main>
+    </>
   )
 }

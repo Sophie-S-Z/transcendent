@@ -57,9 +57,3 @@ export function mergeRanking(ids: string[], tier0: PageAction[]): PageAction[] {
 export const LOG_MAX = 5000
 export const appendLog = (log: LogRow[], row: LogRow) => [...log, row].slice(-LOG_MAX)
 
-/** One CSV cell. Quotes every cell, and stops a spreadsheet from reading page text as a formula. */
-const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`
-
-export function toCsv(rows: LogRow[]): string {
-  return ['time,site,label,risk', ...rows.map((r) => [r.time, r.site, r.label, r.risk].map(cell).join(','))].join('\n')
-}

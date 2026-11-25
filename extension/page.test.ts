@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { clip, mergeLabel, rankTier0, riskOf } from '../src/core/actions'
-import { appendLog, describePage, FIXED, isCardField, LOG_MAX, mergeRanking, toCsv, type LogRow, type PageAction } from './page'
+import { appendLog, describePage, FIXED, isCardField, LOG_MAX, mergeRanking, type LogRow, type PageAction } from './page'
 
 const field = { autocomplete: '', name: '', id: '', label: '', placeholder: '' }
 const act = (id: string, patch: Partial<PageAction> = {}): PageAction => ({
@@ -83,13 +83,6 @@ describe('rankTier0', () => {
   it('always puts irreversible actions last, even when chosen often', () => {
     const list = [act('send', { risk: 'irreversible', fill: true }), ...FIXED]
     expect(rankTier0(list, { send: 99 }).at(-1)?.id).toBe('send')
-  })
-})
-
-describe('toCsv', () => {
-  it('quotes cells and defuses formulas', () => {
-    const csv = toCsv([{ time: 't', site: 'http://a', label: '=HYPERLINK("x")', risk: 'safe' }])
-    expect(csv.split('\n')[1]).toBe('"t","http://a","\'=HYPERLINK(""x"")","safe"')
   })
 })
 

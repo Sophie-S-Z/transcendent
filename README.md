@@ -40,13 +40,19 @@ The extension runs the same loop on real web pages. A page reader lists the visi
 - Send, post, pay, delete, and submit actions always open a confirm screen with Cancel first. A button whose page name differs from its visible text shows both names.
 - The extension refuses every click and every text entry on a page with a card field.
 - A held blink selects when the eyes open. A held blink of 3 seconds, or the Escape key, stops the scan.
-- Each action goes to a log on the device. The panel can export or delete it.
+- Each action goes to a log on the device. The log keeps the newest 5,000 actions. The panel can export or delete it.
+- A setting lets the on-device model (Tier 1) rank the page actions with the page title and the visible text. The model can only change the order of the safe actions on the list.
 
 To load it, run `npm run build:extension`. Open `chrome://extensions`, turn on Developer mode, select "Load unpacked", and select `extension/dist`. The demo sites for the Phase 1 gate are in `public/demo-sites` (mail, video, shop). `npm run test:extension` runs the end-to-end test, which includes hostile pages with hidden and fake buttons.
 
-## Windows blink switch (Phase 3)
+## Windows app (Phases 3 and 4)
 
-A small Tauri app turns one held blink into one Space key press for the whole system. The Windows On-Screen Keyboard in scan mode then controls any app. See `desktop/README.md`. The "Desktop app" GitHub workflow builds the Windows installer.
+A small Tauri app has two modes (`desktop/`):
+
+- **Switch:** one held blink sends one Space key press to the whole system. The Windows On-Screen Keyboard in scan mode then controls any app.
+- **Predict:** the app reads the controls of the app in front with Windows UI Automation. The same Tier 0 rules as the extension rank them (`src/core/actions.ts`), and one held blink runs the highlighted control. It never types into a password field.
+
+See `desktop/README.md`. The "Desktop app" GitHub workflow lints and tests the Rust code on Windows and builds the Windows installer. The macOS version is not built.
 
 ## Run
 

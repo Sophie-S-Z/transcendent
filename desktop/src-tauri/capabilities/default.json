@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The switch window can call press_key and nothing else.",
+  "description": "The window can press a key, read the foreground app, and run one of its controls. Nothing else.",
   "windows": ["main"],
-  "permissions": ["allow-press-key"]
+  "permissions": ["allow-press-key", "allow-read-window", "allow-run-action"]
 }

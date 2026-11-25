@@ -6,12 +6,15 @@ export function Card({
   highlight,
   progress,
   large = false,
+  compact = false,
   urgent = false,
 }: {
   label: string
   highlight: boolean
   progress: number
   large?: boolean
+  /** True for a small window, such as the desktop app. */
+  compact?: boolean
   /** True for "Call for help". An amber edge sets it apart from the other items. */
   urgent?: boolean
 }) {
@@ -19,8 +22,12 @@ export function Card({
     <div
       data-item
       data-highlight={highlight || undefined}
-      className={`relative flex h-full items-center rounded-(--radius-item) border px-6 transition-[scale,background-color,color] duration-200 ease-out ${
-        large ? 'min-h-36 py-4 text-4xl font-semibold tracking-tight' : 'min-h-28 py-3 text-2xl'
+      className={`relative flex h-full items-center rounded-(--radius-item) border transition-[scale,background-color,color] duration-200 ease-out ${
+        large
+          ? 'min-h-36 px-6 py-4 text-4xl font-semibold tracking-tight'
+          : compact
+            ? 'min-h-14 px-4 py-2 text-xl'
+            : 'min-h-28 px-6 py-3 text-2xl'
       } ${highlight ? 'lit scale-[1.02] border-transparent' : `${urgent ? 'border-accent/50' : 'border-line'} bg-surface shadow-[var(--glass-edge)]`}`}
     >
       {label}

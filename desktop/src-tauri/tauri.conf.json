@@ -12,8 +12,8 @@
       {
         "label": "main",
         "title": "Transcendent Switch",
-        "width": 320,
-        "height": 380,
+        "width": 420,
+        "height": 640,
         "resizable": false,
         "maximizable": false,
         "alwaysOnTop": true,
