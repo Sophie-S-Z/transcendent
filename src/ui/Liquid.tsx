@@ -1,9 +1,11 @@
 import { LiquidMetal, MeshGradient } from '@paper-design/shaders-react'
 
-// Paper Shaders (Apache-2.0). Speed 0 draws one frame and stops, so the backdrop costs nothing while the camera runs.
+// Paper Shaders (Apache-2.0). Speed 0 draws one frame and stops, so a still backdrop costs nothing while the camera runs.
 
-/** A dark, grainy navy field behind every screen. */
-export function Backdrop() {
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** A dark, grainy navy field behind every screen. It drifts slowly only when `live` is true. */
+export function Backdrop({ live }: { live: boolean }) {
   return (
     <MeshGradient
       aria-hidden
@@ -11,14 +13,15 @@ export function Backdrop() {
       colors={['#0a1022', '#142450', '#0a1022', '#1f3a6a']}
       distortion={0.9}
       swirl={0.35}
-      grainOverlay={0.25}
-      speed={0}
+      grainMixer={0.15}
+      grainOverlay={0.35}
+      speed={live && !still ? 0.08 : 0}
       frame={9000}
+      minPixelRatio={1}
+      maxPixelCount={1920 * 1080}
     />
   )
 }
-
-const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** The liquid chrome mark. Use it only on screens without the camera, because it animates. */
 export function Mark({ size }: { size: number }) {
