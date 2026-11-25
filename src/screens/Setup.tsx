@@ -1,6 +1,7 @@
 // The setup screen for the caregiver or the observer. It uses the mouse.
 import { STEP_MAX_MS, STEP_MIN_MS, type Settings } from '../settings'
-import type { Mode } from '../eval/log'
+import { loadLog, type Mode } from '../eval/log'
+import { scenarioById, SCENARIOS } from '../eval/scenarios'
 import { Mark } from '../ui/Liquid'
 
 export type Next = 'calibrate' | 'use' | 'session' | 'results' | 'probe'
@@ -16,6 +17,12 @@ const row = 'flex min-h-16 items-center justify-between gap-8 py-3'
 export function Setup({ settings, onChange, onNext }: { settings: Settings; onChange: (s: Settings) => void; onNext: (n: Next) => void }) {
   const set = (patch: Partial<Settings>) => onChange({ ...settings, ...patch })
   const modeIndex = MODES.findIndex(([m]) => m === settings.mode)
+  const scenario = scenarioById(settings.scenario)
+  // The setup scenario has no workspace tasks. Its 2 steps tick here when they are done.
+  const checklist: [string, boolean][] = [
+    ['Calibrate and pass the 1-minute reading test', loadLog().some((r) => r.task === 'gate-a' && r.completed)],
+    ['Set the highlight speed to 1.5 s', settings.stepMs === 1500],
+  ]
   return (
     <main className="mx-auto grid min-h-dvh max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-16 px-4 py-12 sm:px-10 lg:grid-cols-[1fr_1fr] lg:gap-24">
       <section className="flex flex-col items-start gap-10">
@@ -26,7 +33,7 @@ export function Setup({ settings, onChange, onNext }: { settings: Settings; onCh
             Finish computer tasks with one signal: a held blink, or any key or switch. All processing stays on this device.
           </p>
         </div>
-        <button className="btn chrome min-h-20 px-16 text-2xl" onClick={() => onNext('use')}>
+        <button className="btn lit min-h-20 px-16 text-2xl" onClick={() => onNext('use')}>
           Start
         </button>
         <div className="flex flex-wrap gap-3">
@@ -78,12 +85,38 @@ export function Setup({ settings, onChange, onNext }: { settings: Settings; onCh
         </div>
 
         <div className="flex flex-col gap-4">
-          <h2 className="text-sm text-muted">Mode and tester</h2>
+          <h2 className="text-sm text-muted">Scenario, mode, and tester</h2>
+          <select
+            value={scenario.id}
+            onChange={(e) => set({ scenario: e.target.value })}
+            aria-label="Scenario"
+            className="field"
+          >
+            {SCENARIOS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <p className="-mt-2 text-sm text-muted">
+            {scenario.profile} Signal: {scenario.signal.toLowerCase()}.
+          </p>
+          {scenario.id === 'setup' && (
+            <ul className="-mt-2 flex flex-col gap-1 text-base">
+              {checklist.map(([label, done]) => (
+                <li key={label}>
+                  <span aria-hidden className="inline-block w-6">{done ? '✓' : '○'}</span>
+                  {label}
+                  <span className="sr-only">{done ? ', done' : ', not done'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <div role="radiogroup" aria-label="Mode" className="relative grid grid-cols-3 rounded-[14px] border border-line bg-bg/60 p-1">
-            {/* The chrome thumb slides to the selected mode. */}
+            {/* The lit thumb slides to the selected mode. */}
             <span
               aria-hidden
-              className="chrome absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-[10px] transition-[translate] duration-300 ease-in-out"
+              className="lit absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-[10px] transition-[translate] duration-300 ease-in-out"
               style={{ translate: `${modeIndex * 100}% 0` }}
             />
             {MODES.map(([mode, label]) => (

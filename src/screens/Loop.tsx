@@ -2,11 +2,11 @@
 // A highlight moves through a list of items. One select runs the highlighted item.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { countKey, rankActions, type Counts } from '../core/predict'
-import { sampleWorkspace } from '../core/sample'
 import { loadEngine, rankWithModel, type Engine } from '../core/tier1'
 import { applyAction, helpAction, validActions, type Action, type Workspace } from '../core/workspace'
 import { loadLog, saveLog, SESSION, testerName } from '../eval/log'
-import { HELP_TESTS, TASKS, type Task } from '../eval/tasks'
+import { scenarioById, type Scenario } from '../eval/scenarios'
+import type { Task } from '../eval/tasks'
 import { useSignal } from '../input/useSignal'
 import type { Settings } from '../settings'
 import { acceptWord, DONE, draftsFor, KEY_ROWS, nextWords, typeKey } from '../text/entry'
@@ -22,7 +22,7 @@ type Layer =
   | { kind: 'typing'; action: Action; text: string; row: number | null }
   | { kind: 'confirm'; action: Action; text?: string }
 
-type Item = { label: string; run: () => void }
+type Item = { label: string; run: () => void; urgent?: boolean }
 
 type Trial = {
   task: Task
@@ -59,7 +59,8 @@ const merge = (ids: string[], tier0: Action[]) => [
 export function Loop({ settings, session, onExit }: { settings: Settings; session: boolean; onExit: () => void }) {
   const { mode, stepMs } = settings
   const baseline = mode === 'baseline'
-  const [ws, setWs] = useState(sampleWorkspace)
+  const scenario = scenarioById(settings.scenario)
+  const [ws, setWs] = useState(scenario.workspace)
   const [layer, setLayer] = useState<Layer>({ kind: 'home' })
   const [index, setIndex] = useState(0)
   const [version, setVersion] = useState(0)
@@ -144,8 +145,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     if (!trial?.end || saved.current === trial) return
     saved.current = trial
     const { task, end, t0: _, ...counters } = trial
-    saveLog([...loadLog(), { session: SESSION, tester: testerName(settings.tester), mode, task: task.id, ...counters, ...end }])
-  }, [trial, mode, settings.tester])
+    saveLog([...loadLog(), { session: SESSION, tester: testerName(settings.tester), mode, task: task.id, ...counters, ...end, scenario: scenario.id }])
+  }, [trial, mode, settings.tester, scenario.id])
 
   const run = (a: Action, text?: string) => {
     const next = applyAction(ws, { id: a.id, text })
@@ -201,7 +202,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     label: name,
     run: () => go({ kind: 'actions', category: name }),
   }))
-  const helpItem: Item = { label: 'Call for help', run: () => pick(helpAction) }
+  const helpItem: Item = { label: 'Call for help', run: () => pick(helpAction), urgent: true }
 
   const items: Item[] = (() => {
     switch (layer.kind) {
@@ -318,6 +319,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
 
       {session && (
         <Observer
+          scenario={scenario}
           trial={trial}
           holdout={holdout}
           setHoldout={setHoldout}
@@ -356,6 +358,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
                   <Card
                     label={it.label}
                     large={i === 0 && layer.kind === 'home' && !baseline && !undo}
+                    urgent={it.urgent}
                     highlight={i === index}
                     progress={progress}
                   />
@@ -383,12 +386,14 @@ const MODE_LABEL = { baseline: 'Baseline keyboard', tier0: 'Tier 0 rules', tier1
 
 /** The observer panel. The observer uses the mouse. These clicks are not signals. */
 function Observer({
+  scenario,
   trial,
   holdout,
   setHoldout,
   onStart,
   onEnd,
 }: {
+  scenario: Scenario
   trial: Trial | null
   holdout: string
   setHoldout: (s: string) => void
@@ -416,7 +421,7 @@ function Observer({
           {(trial.end.ms / 1000).toFixed(1)} s
         </p>
       )}
-      {[...TASKS, ...HELP_TESTS].map((t) => (
+      {scenario.tasks.map((t) => (
         <button key={t.id} className={button} onClick={() => onStart(t)} title={t.instruction}>
           {typeof t.id === 'number' ? `Task ${t.id}` : t.title.replace('Call for help, state', 'Help')}
         </button>
@@ -431,7 +436,7 @@ function Observer({
         className={button}
         disabled={!holdout.trim()}
         onClick={() =>
-          onStart({ id: `holdout: ${holdout.trim()}`, title: holdout.trim(), instruction: holdout.trim(), start: sampleWorkspace, done: () => false })
+          onStart({ id: `holdout: ${holdout.trim()}`, title: holdout.trim(), instruction: holdout.trim(), start: scenario.workspace, done: () => false })
         }
       >
         Start hold-out
