@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { clip, FIXED, isCardField, mergeLabel, rankPage, riskOf, toCsv, type PageAction } from './page'
+import { clip, mergeLabel, rankTier0, riskOf } from '../src/core/actions'
+import { FIXED, isCardField, toCsv, type PageAction } from './page'
 
 const field = { autocomplete: '', name: '', id: '', label: '', placeholder: '' }
 const act = (id: string, patch: Partial<PageAction> = {}): PageAction => ({
@@ -66,22 +67,22 @@ describe('isCardField', () => {
   })
 })
 
-describe('rankPage', () => {
+describe('rankTier0', () => {
   it('puts main content before navigation, and keeps page order', () => {
     const list = [act('nav1', { region: 'nav' }), act('m1'), act('m2')]
-    expect(rankPage(list, {}).map((a) => a.id)).toEqual(['m1', 'm2', 'nav1'])
+    expect(rankTier0(list, {}).map((a) => a.id)).toEqual(['m1', 'm2', 'nav1'])
   })
   it('puts empty fields of the focused form first, in page order', () => {
     const list = [act('m1'), act('to', { kind: 'type', fill: true }), act('body', { kind: 'type', fill: true })]
-    expect(rankPage(list, {}).map((a) => a.id)).toEqual(['to', 'body', 'm1'])
+    expect(rankTier0(list, {}).map((a) => a.id)).toEqual(['to', 'body', 'm1'])
   })
   it('boosts choices made often on this site', () => {
     const list = [act('m1'), act('nav1', { region: 'nav' })]
-    expect(rankPage(list, { nav1: 2 }).map((a) => a.id)).toEqual(['nav1', 'm1'])
+    expect(rankTier0(list, { nav1: 2 }).map((a) => a.id)).toEqual(['nav1', 'm1'])
   })
   it('always puts irreversible actions last, even when chosen often', () => {
     const list = [act('send', { risk: 'irreversible', fill: true }), ...FIXED]
-    expect(rankPage(list, { send: 99 }).at(-1)?.id).toBe('send')
+    expect(rankTier0(list, { send: 99 }).at(-1)?.id).toBe('send')
   })
 })
 

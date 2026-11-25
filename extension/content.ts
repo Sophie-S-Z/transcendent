@@ -2,7 +2,8 @@
 // The content script. The side panel injects it into the active tab only when the caregiver allowed that site.
 // It reads the page into action records, draws the highlight, runs actions, and forwards keys.
 // The element map stays here. The panel only sees records. Nothing leaves the laptop.
-import { allowedWithPayments, FIXED, isCardField, mergeLabel, PAYMENT_NOTICE, riskOf, type PageAction, type PageState } from './page'
+import { mergeLabel, riskOf } from '../src/core/actions'
+import { allowedWithPayments, FIXED, isCardField, PAYMENT_NOTICE, type PageAction, type PageState } from './page'
 
 /** What the panel sends. */
 export type ToPage =

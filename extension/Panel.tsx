@@ -2,6 +2,7 @@
 // The side panel: the consent screen and the one-signal scan loop for the open web page.
 // The page reader lists the valid actions. The ranker only orders that list.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { rankTier0 } from '../src/core/actions'
 import { DEFAULT_CONFIG, type BlinkConfig } from '../src/input/blink'
 import { useSignal } from '../src/input/useSignal'
 import { STEP_MAX_MS, STEP_MIN_MS } from '../src/settings'
@@ -10,7 +11,7 @@ import { Card } from '../src/ui/Card'
 import { click } from '../src/ui/click'
 import { Ring } from '../src/ui/Ring'
 import type { FromPage, ToPage } from './content'
-import { allowedWithPayments, GROUPS, PAYMENT_NOTICE, rankPage, toCsv, type LogRow, type PageAction, type PageState } from './page'
+import { allowedWithPayments, GROUPS, PAYMENT_NOTICE, toCsv, type LogRow, type PageAction, type PageState } from './page'
 
 type Settings = { camera: boolean; stepMs: number; blink: BlinkConfig }
 type Tab = { id: number; origin: string | null; nav: number }
@@ -277,7 +278,7 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
   const stop = () => go({ kind: 'paused' })
 
   const actions = useMemo(() => (page ? page.actions.filter((a) => !page.payments || allowedWithPayments(a.kind)) : []), [page])
-  const ranked = useMemo(() => rankPage(actions, counts), [actions, counts])
+  const ranked = useMemo(() => rankTier0(actions, counts), [actions, counts])
 
   const done = (a: PageAction) => {
     addLog({ time: new Date().toISOString(), site, label: a.label, risk: a.risk })
