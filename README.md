@@ -45,4 +45,4 @@ npx vite preview --port 4173 & npm run simulate
 
 ## Stack
 
-TypeScript, React, Vite, Tailwind CSS, MediaPipe Face Landmarker, WebLLM. The face model is in `public/models`. The MediaPipe WebAssembly files are copied from `node_modules` on install.
+TypeScript, React, Vite, Tailwind CSS, MediaPipe Face Landmarker, WebLLM, Paper Shaders (the static backdrop and the chrome mark), Atkinson Hyperlegible Next and Mono. The face model is in `public/models`. The MediaPipe WebAssembly files are copied from `node_modules` on install.
