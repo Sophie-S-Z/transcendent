@@ -2,14 +2,15 @@
 @import '@fontsource-variable/familjen-grotesk/wght.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 
-/* Ice and navy with one cherry accent. The accent marks only the held-blink ring, the select pulse, and results. */
+/* Deep pine and sage mist with one soft amber accent, for long sessions with low glare.
+   The ink is a sage white, not pure white. The amber marks only the held-blink ring and the select pulse. */
 @theme {
-  --color-bg: oklch(0.15 0.03 262);
-  --color-surface: oklch(1 0 0 / 0.07);
-  --color-line: oklch(1 0 0 / 0.14);
-  --color-ink: oklch(0.97 0.01 235);
-  --color-muted: oklch(0.8 0.03 245);
-  --color-accent: oklch(0.68 0.2 18);
+  --color-bg: oklch(0.235 0.024 190);
+  --color-surface: oklch(0.95 0.03 165 / 0.06);
+  --color-line: oklch(0.95 0.03 165 / 0.13);
+  --color-ink: oklch(0.93 0.018 150);
+  --color-muted: oklch(0.77 0.026 170);
+  --color-accent: oklch(0.8 0.115 62);
   --font-sans: 'Familjen Grotesk Variable', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -17,16 +18,10 @@
 }
 
 :root {
-  /* Polished chrome: a bright top, a dark horizon line, and a soft bottom. */
-  --chrome: linear-gradient(
-    in oklch 180deg,
-    oklch(0.99 0.004 230),
-    oklch(0.92 0.015 236) 40%,
-    oklch(0.84 0.03 246) 58%,
-    oklch(0.94 0.012 235)
-  );
-  --glass-edge: inset 0 1px 0 oklch(1 0 0 / 0.2), inset 0 -1px 0 oklch(1 0 0 / 0.05);
-  --lift: 0 1px 2px oklch(0.08 0.03 262 / 0.4), 0 16px 40px -16px oklch(0.08 0.04 262 / 0.7);
+  /* Matte sage stone: a lit top that falls off softly. It marks the one item that a select runs. */
+  --lit: linear-gradient(in oklch 180deg, oklch(0.94 0.028 155), oklch(0.87 0.035 168));
+  --glass-edge: inset 0 1px 0 oklch(0.95 0.03 165 / 0.12);
+  --lift: 0 1px 2px oklch(0.12 0.03 195 / 0.45), 0 18px 40px -18px oklch(0.1 0.04 195 / 0.8);
 }
 
 /* A fine dot grid over the backdrop, so the page reads as a material. It fades out toward the edges. */
@@ -36,7 +31,7 @@ body::before {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(oklch(1 0 0 / 0.09) 1px, transparent 1.5px) 0 0 / 22px 22px;
+  background: radial-gradient(oklch(0.95 0.03 165 / 0.08) 1px, transparent 1.5px) 0 0 / 22px 22px;
   mask: radial-gradient(ellipse at 50% 40%, black, transparent 75%);
 }
 
@@ -59,10 +54,10 @@ h2 {
   text-underline-offset: 0.2em;
 }
 
-@utility chrome {
-  background: var(--chrome);
-  color: var(--color-bg);
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.9), inset 0 -2px 4px oklch(0.5 0.04 250 / 0.35), var(--lift);
+@utility lit {
+  background: var(--lit);
+  color: oklch(0.22 0.03 190);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6), var(--lift);
 }
 
 @utility btn {
@@ -102,7 +97,7 @@ h2 {
   background: var(--color-surface);
   box-shadow: var(--glass-edge);
   &:hover:not(:disabled) {
-    background: oklch(1 0 0 / 0.12);
+    background: oklch(0.95 0.03 165 / 0.11);
   }
 }
 
@@ -110,9 +105,9 @@ h2 {
   min-height: 3rem;
   border-radius: 10px;
   border: 1px solid var(--color-line);
-  background: oklch(0.1 0.03 262 / 0.6);
+  background: oklch(0.17 0.02 195 / 0.6);
   padding-inline: 1rem;
-  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.4);
+  box-shadow: inset 0 1px 2px oklch(0.1 0.02 195 / 0.5);
   &::placeholder {
     color: var(--color-muted);
   }
@@ -127,7 +122,7 @@ h2 {
   height: 1.5rem;
   border-radius: 1rem;
   border: 1px solid var(--color-line);
-  background: oklch(0.1 0.03 262 / 0.6);
+  background: oklch(0.17 0.02 195 / 0.6);
   transition: background-color 200ms var(--ease-out);
   &::before {
     content: '';
@@ -144,11 +139,11 @@ h2 {
       background-color 200ms var(--ease-out);
   }
   &:checked {
-    background: oklch(0.62 0.06 245);
+    background: oklch(0.6 0.07 165);
   }
   &:checked::before {
     translate: 1rem 0;
-    background: var(--chrome);
+    background: var(--lit);
     transform-origin: right;
   }
   &:active::before {
@@ -170,7 +165,7 @@ h2 {
     box-shadow: inset 0 0 0 6px var(--color-accent);
   }
   to {
-    box-shadow: inset 0 0 0 0 oklch(0.68 0.2 18 / 0);
+    box-shadow: inset 0 0 0 0 oklch(0.8 0.115 62 / 0);
   }
 }
 

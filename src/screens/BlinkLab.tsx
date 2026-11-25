@@ -221,7 +221,7 @@ export function BlinkLab({
 }
 
 function buttonClass(primary: boolean) {
-  return `btn px-6 text-lg ${primary ? 'chrome' : 'btn-ghost'}`
+  return `btn px-6 text-lg ${primary ? 'lit' : 'btn-ghost'}`
 }
 
 function ReadingText() {

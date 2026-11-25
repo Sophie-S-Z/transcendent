@@ -4,13 +4,13 @@ import { LiquidMetal, MeshGradient } from '@paper-design/shaders-react'
 
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** A dark, grainy navy field behind every screen. It drifts slowly only when `live` is true. */
+/** A dark, grainy pine field behind every screen. It drifts slowly only when `live` is true. */
 export function Backdrop({ live }: { live: boolean }) {
   return (
     <MeshGradient
       aria-hidden
       className="pointer-events-none fixed inset-0 -z-10"
-      colors={['#0a1022', '#142450', '#0a1022', '#1f3a6a']}
+      colors={['#0a1c1b', '#123430', '#081716', '#1d3d31']}
       distortion={0.9}
       swirl={0.35}
       grainMixer={0.15}
@@ -23,7 +23,7 @@ export function Backdrop({ live }: { live: boolean }) {
   )
 }
 
-/** The liquid chrome mark. Use it only on screens without the camera, because it animates. */
+/** The liquid metal mark, tinted sage. Use it only on screens without the camera, because it animates. */
 export function Mark({ size }: { size: number }) {
   return (
     <LiquidMetal
@@ -31,7 +31,7 @@ export function Mark({ size }: { size: number }) {
       style={{ width: size, height: size }}
       shape="circle"
       colorBack="#00000000"
-      colorTint="#c9dcff"
+      colorTint="#cae6d3"
       scale={0.9}
       speed={still ? 0 : 0.6}
     />
