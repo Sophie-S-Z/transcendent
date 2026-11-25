@@ -65,7 +65,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   const [version, setVersion] = useState(0)
   const [history, setHistory] = useState<Workspace[]>([])
   const [undo, setUndo] = useState<string | null>(null)
-  const [glow, setGlow] = useState(-1)
+  const [glow, setGlow] = useState(false)
   const [trial, setTrial] = useState<Trial | null>(null)
   const [holdout, setHoldout] = useState('')
   const [counts, setCounts] = useState<Counts>({})
@@ -115,7 +115,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
       return next
     })
 
-  const end = (completed: boolean, when: (t: Trial) => boolean = () => true) =>
+  const endTrial = (completed: boolean, when: (t: Trial) => boolean = () => true) =>
     setTrial((t) => (t && !t.end && when(t) ? { ...t, end: { ms: Math.round(performance.now() - t.t0), completed } } : t))
 
   // Each ended trial goes to the session log one time.
@@ -136,7 +136,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     } else setUndo(null)
     setWs(next)
     home()
-    end(true, (t) => t.task.done(next))
+    endTrial(true, (t) => t.task.done(next))
   }
 
   const withText = (a: Action, text: string) => (a.reversible ? run(a, text) : go({ kind: 'confirm', action: a, text }))
@@ -231,8 +231,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     if (thinking || !item) return
     if (settings.sound) click()
     addToTrial({ signals: 1 })
-    setGlow(index)
-    setTimeout(() => setGlow(-1), 250)
+    setGlow(true)
+    setTimeout(() => setGlow(false), 250)
     item.run()
   }
 
@@ -298,7 +298,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
           holdout={holdout}
           setHoldout={setHoldout}
           onStart={startTrial}
-          onEnd={end}
+          onEnd={endTrial}
         />
       )}
 
@@ -307,7 +307,9 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
           <WorkspaceView ws={ws} />
         </section>
 
-        <section className="flex flex-col gap-4 px-2">
+        <section
+          className={`flex flex-col gap-4 rounded-2xl px-2 transition-shadow duration-200 ${glow ? 'shadow-[0_0_48px_var(--color-accent)]' : ''}`}
+        >
           <h2 className="text-xl text-muted">{thinking ? 'Thinking' : title}</h2>
           {layer.kind === 'typing' && (
             <p className="min-h-24 rounded-2xl border-2 border-ink p-4 font-mono text-3xl">{layer.text || ' '}▌</p>
@@ -316,7 +318,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
           {layer.kind === 'typing' && layer.row !== null ? (
             <div className="grid grid-cols-6 gap-4">
               {items.map((it, i) => (
-                <Card key={it.label} label={it.label} highlight={i === index} progress={progress} glow={glow === i} />
+                <Card key={it.label} label={it.label} highlight={i === index} progress={progress} />
               ))}
             </div>
           ) : (
@@ -328,7 +330,6 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
                     large={i === 0 && layer.kind === 'home' && !baseline && !undo}
                     highlight={!thinking && i === index}
                     progress={progress}
-                    glow={glow === i}
                   />
                 </div>
               ))}

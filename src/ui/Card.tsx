@@ -1,28 +1,23 @@
 /**
  * One scan item. The highlighted card has an accent border. During a held blink a ring closes around it.
- * A short glow shows the select.
  */
 export function Card({
   label,
   highlight,
   progress,
-  glow,
   large = false,
 }: {
   label: string
   highlight: boolean
   progress: number
-  glow: boolean
   large?: boolean
 }) {
   return (
     <div
       data-highlight={highlight || undefined}
-      className={`relative flex items-center rounded-2xl bg-surface px-6 transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+      className={`relative flex items-center rounded-2xl bg-surface px-6 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
         large ? 'min-h-36 py-4 text-4xl font-bold' : 'h-full min-h-24 py-2 text-xl'
-      } ${highlight ? 'scale-[1.03] outline-4 outline-accent' : 'outline-2 outline-surface'} ${
-        glow ? 'shadow-[0_0_48px_var(--color-accent)]' : ''
-      }`}
+      } ${highlight ? 'scale-[1.03] outline-4 outline-accent' : 'outline-2 outline-surface'}`}
     >
       {label}
       {highlight && progress > 0 && (
