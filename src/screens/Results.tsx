@@ -1,15 +1,10 @@
 // The results screen for the observer and the judges (T15). It shows signals and time next to the baseline.
 import { Fragment } from 'react'
-import { median, savingPct, summarize, toCsv, type Mode, type TaskRecord } from '../eval/log'
+import { median, MODE_LABEL, savingPct, summarize, toCsv, type Mode, type TaskRecord } from '../eval/log'
 import { SCENARIOS } from '../eval/scenarios'
 import { TASKS } from '../eval/tasks'
 
 const ORDER: Mode[] = ['baseline', 'tier0', 'tier1']
-const LABELS: Record<Mode, string> = {
-  baseline: 'Baseline keyboard',
-  tier0: 'Tier 0 rules',
-  tier1: 'Tier 1 model',
-}
 
 const pct = (x: number) => `${Math.round(x * 100)}%`
 
@@ -41,7 +36,8 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
   }
   rows.sort((a, b) => order(a.scenario) - order(b.scenario))
   const scenarioName = (s: string) => SCENARIOS.find((x) => x.id === s)?.name ?? s
-  const title = (id: number | string) => SCENARIOS.flatMap((s) => s.tasks).find((t) => t.id === id)?.title ?? String(id)
+  const title = (id: number | string) =>
+    id === 'gate-a' ? 'Gate A reading test' : (SCENARIOS.flatMap((s) => s.tasks).find((t) => t.id === id)?.title ?? String(id))
   const cell = (scenario: string, id: number | string, mode: Mode) => {
     const xs = done.filter((r) => scenarioOf(r) === scenario && r.task === id && r.mode === mode).map((r) => r.signals)
     return xs.length ? String(median(xs)) : '-'
@@ -67,7 +63,7 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
             {summaries.map((s) => (
               <article key={s.mode} className="flex flex-col gap-4 md:px-8 md:first:pl-0 md:last:pr-0">
                 <div>
-                  <h2 className="text-xl font-bold">{LABELS[s.mode]}</h2>
+                  <h2 className="text-xl font-bold">{MODE_LABEL[s.mode]}</h2>
                   <p className="text-muted">{s.tasks} tasks</p>
                 </div>
                 <div>
@@ -106,7 +102,7 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
                 <th className="py-3 pr-6 font-normal text-muted">Task</th>
                 {summaries.map((s) => (
                   <th key={s.mode} className="py-3 pr-6 font-normal text-muted">
-                    {LABELS[s.mode]}
+                    {MODE_LABEL[s.mode]}
                   </th>
                 ))}
               </tr>

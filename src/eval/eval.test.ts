@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sampleWorkspace } from '../core/sample'
 import { applyAction, type Workspace } from '../core/workspace'
-import { median, savingPct, summarize, testerName, toCsv, type TaskRecord } from './log'
+import { appendLog, loadLog, median, savingPct, summarize, testerName, toCsv, type TaskRecord } from './log'
 import { HELP_TESTS, helpDone, TASKS } from './tasks'
 
 type Step = [id: string, text?: string]
@@ -55,16 +55,17 @@ const rec = (r: Partial<TaskRecord>): TaskRecord => ({
 })
 
 describe('log', () => {
-  it('toCsv quotes a field with a comma and a quote', () => {
-    const lines = toCsv([rec({ tester: 'Lee, "Al"' })]).split('\r\n')
+  it('toCsv quotes every field, escapes quotes, and defuses formulas', () => {
+    const lines = toCsv([rec({ tester: 'Lee, "Al"' }), rec({ tester: '=HYPERLINK("x")' })]).split('\n')
     expect(lines[0]).toBe('session,tester,mode,task,signals,ms,errors,topHits,top5Hits,steps,completed,startedAt,scenario')
-    expect(lines[1]).toBe('s1,"Lee, ""Al""",baseline,1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,')
+    expect(lines[1]).toBe('"s1","Lee, ""Al""","baseline","1","10","1000","0","0","0","0","true","2026-11-24T10:00:00.000Z",""')
+    expect(lines[2]).toContain(`"'=HYPERLINK(""x"")"`)
   })
 
   it('toCsv prints the scenario, and an empty field for an old record without one', () => {
-    const lines = toCsv([rec({ task: 'care-1', scenario: 'care' }), rec({})]).split('\r\n')
-    expect(lines[1]).toBe('s1,t1,baseline,care-1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,care')
-    expect(lines[2]).toBe('s1,t1,baseline,1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,')
+    const lines = toCsv([rec({ task: 'care-1', scenario: 'care' }), rec({})]).split('\n')
+    expect(lines[1]).toMatch(/"care-1",.*,"care"$/)
+    expect(lines[2]).toMatch(/,""$/)
   })
 
   it('median of odd, even, and empty lists', () => {
@@ -96,5 +97,27 @@ describe('log', () => {
   it('savingPct', () => {
     expect(savingPct(20, 8)).toBe(60)
     expect(savingPct(0, 5)).toBe(0)
+  })
+})
+
+describe('stored log', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const store = (initial: Record<string, string> = {}) => {
+    const data = new Map(Object.entries(initial))
+    vi.stubGlobal('localStorage', { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => data.set(k, v) })
+  }
+
+  it('appendLog keeps the old records and adds the new one last', () => {
+    store()
+    appendLog(rec({ task: 1 }))
+    appendLog(rec({ task: 2 }))
+    expect(loadLog().map((r) => r.task)).toEqual([1, 2])
+  })
+
+  it('loadLog gives an empty list for broken or wrong data', () => {
+    store({ 'transcendent.log': '{not json' })
+    expect(loadLog()).toEqual([])
+    store({ 'transcendent.log': '{"a":1}' })
+    expect(loadLog()).toEqual([])
   })
 })

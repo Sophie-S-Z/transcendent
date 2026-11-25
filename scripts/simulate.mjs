@@ -4,7 +4,7 @@
 import { chromium } from 'playwright-core'
 
 const URL = process.argv[2] ?? 'http://localhost:4173/'
-const CHROME = process.argv[3] ?? process.env.CHROME ?? '/usr/bin/google-chrome'
+const CHROME = process.argv[3] ?? process.env.CHROME
 const STEP_MS = 300
 
 const ROWS = [['␣', 'e', 't', 'a', '⌫', '✓'], ['o', 'i', 'n', 's', 'h', 'r'], ['d', 'l', 'c', 'u', 'm', 'w'], ['f', 'g', 'y', 'p', 'b', 'v'], ['k', 'j', 'x', 'q', 'z'], ['.', ',', '?']]
@@ -39,7 +39,8 @@ const PATHS = {
   },
 }
 
-const browser = await chromium.launch({ executablePath: CHROME })
+// Without a Chrome path, Playwright uses its own installed Chromium.
+const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : { channel: 'chromium' })
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))

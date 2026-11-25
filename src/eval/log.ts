@@ -1,6 +1,10 @@
 // The session log: one record for each task attempt. It gives the CSV export and the summary for each mode.
 
+import { toCsv as csv } from '../core/csv'
+
 export type Mode = 'baseline' | 'tier0' | 'tier1'
+
+export const MODE_LABEL: Record<Mode, string> = { baseline: 'Baseline keyboard', tier0: 'Tier 0 rules', tier1: 'Tier 1 model' }
 
 export type TaskRecord = {
   session: string
@@ -29,14 +33,8 @@ const COLUMNS: (keyof TaskRecord)[] = [
   'session', 'tester', 'mode', 'task', 'signals', 'ms', 'errors', 'topHits', 'top5Hits', 'steps', 'completed', 'startedAt', 'scenario',
 ]
 
-/** Puts a field in quotes when it has a comma, a quote, or a line break (RFC 4180). */
-const field = (v: unknown) => {
-  const s = String(v)
-  return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
-}
-
 export function toCsv(records: TaskRecord[]): string {
-  return [COLUMNS, ...records.map((r) => COLUMNS.map((c) => r[c] ?? ''))].map((row) => row.map(field).join(',')).join('\r\n')
+  return csv(COLUMNS, records.map((r) => COLUMNS.map((c) => String(r[c] ?? ''))))
 }
 
 export type Summary = {
@@ -107,6 +105,6 @@ export function loadLog(): TaskRecord[] {
   }
 }
 
-export function saveLog(records: TaskRecord[]): void {
-  if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify(records))
+export function appendLog(record: TaskRecord): void {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, JSON.stringify([...loadLog(), record]))
 }

@@ -6,6 +6,7 @@ import { rankActions } from '../core/predict'
 import { sampleWorkspace } from '../core/sample'
 import { loadEngine, MODEL_ID, rankWithModel, type Engine } from '../core/tier1'
 import { applyAction, validActions, type Workspace } from '../core/workspace'
+import { median } from '../eval/log'
 
 const LIMIT_MS = 1500
 
@@ -15,8 +16,6 @@ function states(): Workspace[] {
   const notes = applyAction(inbox, { id: 'go:notes' })
   return [inbox, invite, notes, inbox, invite]
 }
-
-const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]
 
 export function ModelProbe() {
   const [engine, setEngine] = useState<Engine>()

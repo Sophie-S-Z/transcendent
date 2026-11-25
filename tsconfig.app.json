@@ -22,5 +22,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "extension", "desktop/src"]
+  "include": ["src", "extension", "desktop/src"],
+  "exclude": ["extension/vite.config.ts"]
 }
