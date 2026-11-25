@@ -1,22 +1,18 @@
 // The setup screen for the caregiver or the observer. It uses the mouse.
 import { STEP_MAX_MS, STEP_MIN_MS, type Settings } from '../settings'
-import { loadLog, type Mode } from '../eval/log'
+import { loadLog, MODE_LABEL, type Mode } from '../eval/log'
 import { scenarioById, SCENARIOS } from '../eval/scenarios'
 import { Mark } from '../ui/Liquid'
 
 export type Next = 'calibrate' | 'use' | 'session' | 'results' | 'probe'
 
-const MODES: [Mode, string][] = [
-  ['tier0', 'Tier 0 rules'],
-  ['tier1', 'Tier 1 model'],
-  ['baseline', 'Baseline keyboard'],
-]
+const MODES: Mode[] = ['tier0', 'tier1', 'baseline']
 
 const row = 'flex min-h-16 items-center justify-between gap-8 py-3'
 
 export function Setup({ settings, onChange, onNext }: { settings: Settings; onChange: (s: Settings) => void; onNext: (n: Next) => void }) {
   const set = (patch: Partial<Settings>) => onChange({ ...settings, ...patch })
-  const modeIndex = MODES.findIndex(([m]) => m === settings.mode)
+  const modeIndex = MODES.indexOf(settings.mode)
   const scenario = scenarioById(settings.scenario)
   // The setup scenario has no workspace tasks. Its 2 steps tick here when they are done.
   const checklist: [string, boolean][] = [
@@ -119,13 +115,13 @@ export function Setup({ settings, onChange, onNext }: { settings: Settings; onCh
               className="lit absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-[10px] transition-[translate] duration-300 ease-in-out"
               style={{ translate: `${modeIndex * 100}% 0` }}
             />
-            {MODES.map(([mode, label]) => (
+            {MODES.map((mode) => (
               <label
                 key={mode}
                 className="relative grid min-h-12 cursor-pointer place-items-center rounded-[10px] px-3 text-center text-base font-semibold text-muted transition-colors duration-300 has-checked:text-bg has-focus-visible:outline-2 has-focus-visible:outline-ink"
               >
                 <input type="radio" name="mode" className="sr-only" checked={settings.mode === mode} onChange={() => set({ mode })} />
-                {label}
+                {MODE_LABEL[mode]}
               </label>
             ))}
           </div>

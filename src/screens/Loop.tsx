@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { countKey, rankActions, type Counts } from '../core/predict'
 import { loadEngine, rankWithModel, type Engine } from '../core/tier1'
 import { applyAction, helpAction, validActions, type Action, type Workspace } from '../core/workspace'
-import { loadLog, saveLog, SESSION, testerName } from '../eval/log'
+import { appendLog, MODE_LABEL, SESSION, testerName } from '../eval/log'
 import { scenarioById, type Scenario } from '../eval/scenarios'
 import type { Task } from '../eval/tasks'
 import { useSignal } from '../input/useSignal'
@@ -145,7 +145,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     if (!trial?.end || saved.current === trial) return
     saved.current = trial
     const { task, end, t0: _, ...counters } = trial
-    saveLog([...loadLog(), { session: SESSION, tester: testerName(settings.tester), mode, task: task.id, ...counters, ...end, scenario: scenario.id }])
+    appendLog({ session: SESSION, tester: testerName(settings.tester), mode, task: task.id, ...counters, ...end, scenario: scenario.id })
   }, [trial, mode, settings.tester, scenario.id])
 
   const run = (a: Action, text?: string) => {
@@ -382,7 +382,6 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
 }
 
 const stagger = (i: number) => ({ '--i': i }) as CSSProperties
-const MODE_LABEL = { baseline: 'Baseline keyboard', tier0: 'Tier 0 rules', tier1: 'Tier 1 model' }
 
 /** The observer panel. The observer uses the mouse. These clicks are not signals. */
 function Observer({

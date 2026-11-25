@@ -1,8 +1,6 @@
-import { APPS, matchingNotes, type AppName, type Workspace } from '../core/workspace'
+import { APP_LABEL, APPS, matchingNotes, type Workspace } from '../core/workspace'
 
 // This view is read-only. It has no buttons and no click handlers.
-
-const LABEL: Record<AppName, string> = { mail: 'Mail', messages: 'Messages', calendar: 'Calendar', notes: 'Notes' }
 
 const DATE: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
 const TIME: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
@@ -140,11 +138,11 @@ const VIEWS = { mail: MailView, messages: MessagesView, calendar: CalendarView, 
 export function WorkspaceView({ ws }: { ws: Workspace }) {
   const Body = VIEWS[ws.view.app]
   return (
-    <section aria-label={LABEL[ws.view.app]} className="flex flex-col gap-6 text-lg text-ink">
+    <section aria-label={APP_LABEL[ws.view.app]} className="flex flex-col gap-6 text-lg text-ink">
       <nav className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line pb-3 text-lg">
         {APPS.map((a) => (
-          <span key={a} className={a === ws.view.app ? 'text-ink underline underline-offset-8' : 'text-muted'}>
-            {LABEL[a]}
+          <span key={a} className={a === ws.view.app ? 'text-ink underline' : 'text-muted'}>
+            {APP_LABEL[a]}
           </span>
         ))}
       </nav>

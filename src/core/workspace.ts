@@ -63,7 +63,7 @@ export type Workspace = {
 }
 
 export const APPS: AppName[] = ['mail', 'messages', 'calendar', 'notes']
-const APP_LABEL: Record<AppName, string> = { mail: 'Mail', messages: 'Messages', calendar: 'Calendar', notes: 'Notes' }
+export const APP_LABEL: Record<AppName, string> = { mail: 'Mail', messages: 'Messages', calendar: 'Calendar', notes: 'Notes' }
 export const CAREGIVER = 'thread-caregiver'
 export const HELP_TEXT = 'I need help now. Please come.'
 const LABEL_MAX = 40
