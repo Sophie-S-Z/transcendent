@@ -5,7 +5,11 @@ on:
   pull_request:
     paths:
       - desktop/**
+      - src/core/actions.ts
       - src/input/**
+      - src/text/**
+      - src/ui/**
+      - .github/workflows/desktop.yml
 
 permissions:
   contents: read
@@ -22,9 +26,16 @@ jobs:
       - run: npm ci
       - run: npm run build:desktop
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
+      # The UI Automation code compiles only on Windows, so this job lints and tests it.
+      - run: cargo clippy --all-targets -- -D warnings
+        working-directory: desktop/src-tauri
+      - run: cargo test
+        working-directory: desktop/src-tauri
       - run: npx --yes @tauri-apps/cli@2.12.4 build
         working-directory: desktop
       - uses: actions/upload-artifact@v4

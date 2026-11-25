@@ -9,9 +9,15 @@ const id = (n: number) => actions[n - 1].id
 
 describe('rankPrompt', () => {
   it('lists every label with its number', () => {
-    const prompt = rankPrompt(ws, actions)
+    const prompt = rankPrompt('The mail list.', actions.map((a) => a.label))
     actions.forEach((a, i) => expect(prompt).toContain(`${i + 1}. ${a.label}`))
     expect(prompt).not.toContain('Call for help')
+  })
+  it('keeps the exact prompt text', () => {
+    expect(rankPrompt('The mail list.', ['Open', 'Reply'])).toBe(
+      'The user sees: The mail list.\n\nActions:\n1. Open\n2. Reply\n\n' +
+        'Which 5 actions will the user most likely choose next? Answer with 5 numbers, comma-separated, best first, and nothing else.',
+    )
   })
 })
 

@@ -10,3 +10,13 @@ tauri-build = { version = "2.7.6", features = [] }
 [dependencies]
 tauri = { version = "2.12.7", features = [] }
 enigo = "0.6.1"
+serde = { version = "1.0.229", features = ["derive"] }
+
+# Predict mode reads app windows through UI Automation. Only Windows has it.
+# The crate does not build without its "input" feature. The app sends no key press through it.
+[target.'cfg(windows)'.dependencies]
+uiautomation = { version = "=0.25.3", default-features = false, features = ["input", "pattern"] }
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }
+
+[dev-dependencies]
+serde_json = "1.0.154"

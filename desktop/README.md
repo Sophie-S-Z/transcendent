@@ -2,7 +2,12 @@
 
 Transcendent Switch turns one held blink into one key press for the whole computer. On Windows, the key drives the On-Screen Keyboard in scan mode. Then you can use any app with blinks only.
 
-The app uses the camera on your computer. No camera frame leaves the computer.
+The app has two modes. Select "Switch" or "Predict" at the top of the window. Switch mode is the default.
+
+- Switch mode sends one key press for each held blink.
+- Predict mode reads the app that you use and shows its next actions. Predict mode needs Windows.
+
+The app uses the camera on your computer. No camera frame and no app content leaves the computer.
 
 ## How the switch works
 
@@ -74,6 +79,50 @@ This test is the Phase 3 gate. Do all the steps with blinks only.
 
 Write down the time, the number of wrong key presses, and each problem.
 
+## Use Predict mode
+
+Predict mode reads the controls of the app that you use. Then it shows the 4 most likely actions, "Something else", and "Stop". A highlight moves through the items.
+
+1. Calibrate in Switch mode.
+2. Select "Predict".
+3. Open the app that you want to use. Transcendent reads the app that is in front.
+4. Hold a blink when the highlight is on the action that you want. Open your eyes when the ring is full. The app runs the action.
+5. To see all the actions, select "Something else". The actions are in groups, for example "Buttons" and "Write in a field".
+6. To write in a field, select the field. Select a row of the keyboard, then select a letter. Select "✓" when the text is complete.
+7. To stop the scan, select "Stop" or keep your eyes closed for 3 seconds. Select "Start again" to continue.
+
+The app reads the window again every 1.5 seconds and after each action. The list changes only when the app changes.
+
+### What Predict mode reads
+
+- The app reads the window with Windows UI Automation. It reads the name, the help text, the ID, and the type of each control.
+- The app reads only controls that are on the screen, that are enabled, and that have a name. It reads up to about 400 controls in 300 ms.
+- The app also reads the open menus of the same app.
+- The app does not read the text in a field. It only checks if the field is empty.
+- The ranking puts empty fields first. Then it puts the actions that you selected most often in this app. Then it puts main content before menus and toolbars.
+
+### What Predict mode refuses
+
+- The app does not type passwords. When you select a password field, the app only puts the cursor in the field. Use Switch mode and the On-Screen Keyboard to type the password.
+- The app does not send key presses in Predict mode. It writes text with UI Automation only.
+- Send, post, pay, buy, order, delete, remove, submit, transfer, and confirm actions open a confirm screen. "Cancel" is the first item. Select "Confirm" to run the action.
+- The app does not run an action when the control is gone or its name changed. Look at the new list and select again.
+
+### Log
+
+The app keeps a log of each action on this computer: the time, the app, the action, and the risk. Select "Stop" to see the log buttons. Select "Export CSV" to save the log. Select "Delete log" two times to delete it.
+
+### Known limits
+
+- Windows does not let a normal app read an app that runs as administrator. Then the app shows "Transcendent cannot read" and the window name. Tell the caregiver. The caregiver can open the app without administrator rights, or use Switch mode for that app.
+- Some apps do not give names to their controls. The app cannot show these controls.
+- The highlight speed is 1.2 seconds. You cannot change it yet.
+- Nobody tested Predict mode on Windows yet. Switch mode stays the default until Predict mode passes a test on Windows.
+
+### Phase 4 gate
+
+Do not test Predict mode with a person with a motor impairment yet. First get feedback from the partners. Then get an approved study. Only then do a test with a person with a motor impairment.
+
 ## Build
 
 The workflow `.github/workflows/desktop.yml` builds the Windows installers. To build on a Windows computer:
@@ -87,6 +136,10 @@ npx --yes @tauri-apps/cli@2.12.4 build
 
 The installers are in `desktop/src-tauri/target/release/bundle`.
 
+The workflow also runs `cargo clippy` and `cargo test` on Windows. The UI Automation code compiles only on Windows.
+
 ## macOS
 
 macOS: not built yet. Switch Control can use the same key; a person must test it on a Mac.
+
+Predict mode does not read macOS apps. The macOS Accessibility reader is not built, because no Mac is available for a test.

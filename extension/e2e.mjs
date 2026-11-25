@@ -144,6 +144,9 @@ try {
   check(safe.some((t) => t.startsWith('<img src=x')), 'a label with HTML shows as plain text')
   check(await panel.evaluate(() => !document.querySelector('[data-item] img, [data-item] b') && !window.pwned), 'no page HTML or script ran in the panel')
   check(await site.evaluate(() => !window.pwned && !window.sent), 'no page script ran and nothing was sent on the hostile page')
+  // The model setting is off by default, so Tier 0 ranked every list above.
+  await panel.getByRole('button', { name: 'Settings' }).click()
+  check(!(await panel.getByLabel(/^Rank with the on-device model/).isChecked()), 'the on-device model setting exists and is off by default')
   await panel.close()
 
   // Without the panel, the test reads and runs through its own connection to the content script.
@@ -176,6 +179,8 @@ try {
   const inject = hostile.actions.find((a) => a.label.startsWith('Next'))
   check(inject?.risk === 'irreversible' && /page names it/.test(inject.label), 'the injected aria-label shows in the label and makes the button irreversible')
   check(hostile.actions.find((a) => a.label === 'Change photo')?.risk === 'safe', 'a plain button stays safe')
+  check(hostile.description.startsWith('The web page "Account settings": Account settings') && !hostile.description.includes('Send hidden 8'),
+    'the page description holds the title and the visible text only')
   const [unconfirmed] = await talk([{ type: 'run', id: fake[0].id, label: fake[0].label, confirmed: false }])
   check(unconfirmed.error !== '' && !(await site.evaluate(() => window.sent)), 'the executor refuses an irreversible action that was not confirmed')
 

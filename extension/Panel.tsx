@@ -2,6 +2,9 @@
 // The side panel: the consent screen and the one-signal scan loop for the open web page.
 // The page reader lists the valid actions. The ranker only orders that list.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { rankTier0 } from '../src/core/actions'
+import { toCsv } from '../src/core/csv'
+import { loadEngine, rankList, type Engine } from '../src/core/tier1'
 import { DEFAULT_CONFIG, type BlinkConfig } from '../src/input/blink'
 import { useSignal } from '../src/input/useSignal'
 import { STEP_MAX_MS, STEP_MIN_MS } from '../src/settings'
@@ -10,9 +13,18 @@ import { Card } from '../src/ui/Card'
 import { click } from '../src/ui/click'
 import { Ring } from '../src/ui/Ring'
 import type { FromPage, ToPage } from './content'
-import { allowedWithPayments, GROUPS, PAYMENT_NOTICE, rankPage, toCsv, type LogRow, type PageAction, type PageState } from './page'
+import {
+  allowedWithPayments,
+  appendLog,
+  GROUPS,
+  mergeRanking,
+  PAYMENT_NOTICE,
+  type LogRow,
+  type PageAction,
+  type PageState,
+} from './page'
 
-type Settings = { camera: boolean; stepMs: number; blink: BlinkConfig }
+type Settings = { camera: boolean; stepMs: number; blink: BlinkConfig; model: boolean }
 type Tab = { id: number; origin: string | null; nav: number }
 type Layer =
   | { kind: 'home' }
@@ -23,14 +35,20 @@ type Layer =
   | { kind: 'paused' }
 type Item = { label: string; run: () => void; target?: string }
 
-const DEFAULTS: Settings = { camera: true, stepMs: 1200, blink: DEFAULT_CONFIG }
+const DEFAULTS: Settings = { camera: true, stepMs: 1200, blink: DEFAULT_CONFIG, model: false }
 const SHOWN = 4
+const MODEL_WAIT_MS = 1500
+// A short list keeps the model inside its 1.5 seconds.
+const MODEL_LIST = 30
+const NO_WEBGPU = 'This computer cannot run WebGPU, so the built-in ranker orders the actions.'
 // The e2e test opens this page as a normal tab and names the page tab in the hash. Web pages cannot open it.
 const FIXED_TAB = Number(new URLSearchParams(location.hash.slice(1)).get('tab')) || null
 
 const originOf = (url?: string) => (url && /^https?:/.test(url) ? new URL(url).origin : null)
 const hostOf = (origin: string) => new URL(origin).host
 const pattern = (origin: string) => `${origin}/*`
+/** A key for the list of actions on the page. A new key restarts the scan and asks the model again. */
+const listOf = (s: PageState) => s.actions.map((a) => `${a.id}:${a.label}:${a.risk}`).join('|')
 
 /** A value in chrome.storage.local. `ready` is false until the first read ends. */
 function useStored<T>(key: string, initial: T) {
@@ -62,12 +80,16 @@ function useTab() {
     }
     const onActivated = () => !FIXED_TAB && load()
     const onUpdated = (id: number, info: { status?: string }) => id === current && info.status === 'complete' && load()
+    // A toolbar click grants activeTab, so the site name is known now.
+    const onMessage = (m: { type?: string }) => m.type === 'action' && load()
     load()
     chrome.tabs.onActivated.addListener(onActivated)
     chrome.tabs.onUpdated.addListener(onUpdated)
+    chrome.runtime.onMessage.addListener(onMessage)
     return () => {
       chrome.tabs.onActivated.removeListener(onActivated)
       chrome.tabs.onUpdated.removeListener(onUpdated)
+      chrome.runtime.onMessage.removeListener(onMessage)
     }
   }, [])
   return tab
@@ -75,13 +97,45 @@ function useTab() {
 
 async function addLog(row: LogRow) {
   const { log = [] } = await chrome.storage.local.get('log')
-  await chrome.storage.local.set({ log: [...(log as LogRow[]), row] })
+  await chrome.storage.local.set({ log: appendLog(log as LogRow[], row) })
+}
+
+/** Tier 1: the on-device model loads in the background when the caregiver turns it on. Until it is ready, Tier 0 ranks. */
+function useEngine(on: boolean) {
+  const [engine, setEngine] = useState<Engine | null>(null)
+  const [status, setStatus] = useState('')
+  useEffect(() => {
+    if (!on) return
+    let live = true
+    let loaded: Engine | null = null
+    const load = async () => {
+      // The download starts only when this computer has a WebGPU adapter.
+      if (!(await navigator.gpu?.requestAdapter())) {
+        if (live) setStatus(NO_WEBGPU)
+        return
+      }
+      loaded = await loadEngine((text) => live && setStatus(text))
+      if (live) setEngine(loaded)
+      else loaded.unload()
+    }
+    load().catch((e: unknown) => live && setStatus(`The model did not load, so the built-in ranker orders the actions. ${String(e)}`))
+    return () => {
+      live = false
+      loaded?.unload()
+      setEngine(null)
+      setStatus('')
+    }
+  }, [on])
+  return { engine, status }
 }
 
 export function Panel() {
   const tab = useTab()
   const [sites, setSites, sitesReady] = useStored<string[]>('sites', [])
-  const [settings, setSettings, settingsReady] = useStored('settings', DEFAULTS)
+  const [stored, setSettings, settingsReady] = useStored('settings', DEFAULTS)
+  // Settings saved by an older version miss the newer keys.
+  const settings = { ...DEFAULTS, ...stored }
+  const { engine, status } = useEngine(settingsReady && settings.model)
   const [granted, setGranted] = useState(false)
   const [view, setView] = useState<'scan' | 'setup'>('scan')
   const [cameraKey, setCameraKey] = useState(0)
@@ -135,8 +189,9 @@ export function Panel() {
           </button>
         )}
       </header>
+      {status && !engine && <p className="text-base text-muted">{status}</p>}
       {allowed && view === 'scan' && tab ? (
-        <Scan key={cameraKey} tab={tab} origin={origin} settings={settings} />
+        <Scan key={cameraKey} tab={tab} origin={origin} settings={settings} engine={engine} />
       ) : (
         <Setup origin={origin} allowed={allowed} sites={sites} settings={settings} onSettings={setSettings} onTurnOn={turnOn} onRemove={remove} />
       )}
@@ -169,7 +224,7 @@ function Setup({
   const set = (patch: Partial<Settings>) => onSettings({ ...settings, ...patch })
   const exportCsv = () => {
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([toCsv(log)], { type: 'text/csv' }))
+    a.href = URL.createObjectURL(new Blob([toCsv(['time', 'site', 'label', 'risk'], log.map((r) => [r.time, r.site, r.label, r.risk]))], { type: 'text/csv' }))
     a.download = 'transcendent-log.csv'
     a.click()
     URL.revokeObjectURL(a.href)
@@ -227,6 +282,14 @@ function Setup({
         </p>
       </section>
 
+      <section className="flex flex-col divide-y divide-line">
+        <h2 className="pb-2 text-sm text-muted">Ranking</h2>
+        <label className={row}>
+          Rank with the on-device model (needs WebGPU, downloads about 400 MB once)
+          <input type="checkbox" className="switch" checked={settings.model} onChange={(e) => set({ model: e.target.checked })} />
+        </label>
+      </section>
+
       <section className="flex flex-col gap-3">
         <h2 className="text-sm text-muted">Log on this laptop</h2>
         <p>{log.length} actions</p>
@@ -251,7 +314,7 @@ function Setup({
 }
 
 /** The scan loop on one allowed page. */
-function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; settings: Settings }) {
+function Scan({ tab, origin, settings, engine }: { tab: Tab; origin: string | null; settings: Settings; engine: Engine | null }) {
   const site = origin ?? ''
   const [page, setPage] = useState<PageState | null>(null)
   const [layer, setLayer] = useState<Layer>({ kind: 'home' })
@@ -277,7 +340,11 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
   const stop = () => go({ kind: 'paused' })
 
   const actions = useMemo(() => (page ? page.actions.filter((a) => !page.payments || allowedWithPayments(a.kind)) : []), [page])
-  const ranked = useMemo(() => rankPage(actions, counts), [actions, counts])
+  const tier0 = useMemo(() => rankTier0(actions, counts), [actions, counts])
+  // The model answer is for one list. Until it comes, the home screen shows no action cards.
+  const [model, setModel] = useState<{ list: string; ids: string[] } | null>(null)
+  const list = page ? listOf(page) : ''
+  const ranked = engine ? (model?.list === list ? mergeRanking(model.ids, tier0) : null) : tier0
 
   const done = (a: PageAction) => {
     addLog({ time: new Date().toISOString(), site, label: a.label, risk: a.risk })
@@ -296,7 +363,7 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
       else if (a) done(a)
     } else {
       setPage(m.state)
-      const sig = m.state.actions.map((a) => `${a.id}:${a.label}:${a.risk}`).join('|')
+      const sig = listOf(m.state)
       if (sig === signature.current) return
       signature.current = sig
       // A new list restarts the scan. Text entry and the confirm screen stay while their item is still on the page.
@@ -364,7 +431,7 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
     switch (layer.kind) {
       case 'home':
         return [
-          ...ranked.slice(0, SHOWN).map(toItem),
+          ...(ranked ?? []).slice(0, SHOWN).map(toItem),
           { label: 'Something else', run: () => go({ kind: 'groups' }) },
           { label: 'Stop', run: stop },
         ]
@@ -448,6 +515,43 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
     return () => clearInterval(id)
   }, [version, stopped, settings.stepMs])
 
+  // Each new list asks the model. After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
+  // The model reads the newest page from a ref, so a new state with the same list does not ask again.
+  const latest = useRef({ page, tier0 })
+  useEffect(() => {
+    latest.current = { page, tier0 }
+  })
+  useEffect(() => {
+    const now = latest.current
+    if (!engine || !now.page) return
+    let live = true
+    let pending = true
+    let timer = 0
+    const timeout = new Promise<null>((resolve) => {
+      timer = window.setTimeout(() => resolve(null), MODEL_WAIT_MS)
+    })
+    const safe = now.tier0.filter((a) => a.risk === 'safe').slice(0, MODEL_LIST)
+    Promise.race([rankList(engine, now.page.description, safe), timeout])
+      .catch(() => [])
+      .then((ids) => {
+        if (ids === null) engine.interruptGenerate()
+        pending = false
+        clearTimeout(timer)
+        if (!live) return
+        setModel({ list, ids: ids ?? [] })
+        if (scan.current.layer.kind === 'home') {
+          setIndex(0)
+          setVersion((v) => v + 1)
+        }
+      })
+    return () => {
+      live = false
+      clearTimeout(timer)
+      if (pending) engine.interruptGenerate()
+      pending = false
+    }
+  }, [engine, list])
+
   const title = {
     home: 'Next action',
     groups: 'Something else',
@@ -484,7 +588,7 @@ function Scan({ tab, origin, settings }: { tab: Tab; origin: string | null; sett
         </p>
       )}
       <div className="flex items-center gap-4">
-        <h2 className="flex-1 text-lg text-muted">{page ? title : 'Reading the page'}</h2>
+        <h2 className="flex-1 text-lg text-muted">{!page ? 'Reading the page' : layer.kind === 'home' && !ranked ? 'Thinking' : title}</h2>
         {layer.kind === 'paused' && <Ring progress={progress} size={56} />}
       </div>
       {layer.kind === 'typing' && (
