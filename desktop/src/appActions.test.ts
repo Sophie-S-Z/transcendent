@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { rankTier0 } from '../../src/core/actions'
-import { GROUPS, readProblem, signature, toActions, type Control } from './predict'
+import { GROUPS, readProblem, signature, toActions, type Control } from './appActions'
 
 const control = (id: string, patch: Partial<Control> = {}): Control => ({
   id,

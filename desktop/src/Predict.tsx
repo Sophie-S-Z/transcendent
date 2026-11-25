@@ -9,7 +9,7 @@ import { DONE, KEY_ROWS, typeKey } from '../../src/text/entry'
 import { Card } from '../../src/ui/Card'
 import { click } from '../../src/ui/click'
 import { Ring } from '../../src/ui/Ring'
-import { GROUPS, readProblem, signature, toActions, type AppAction, type AppWindow, type LogRow } from './predict'
+import { GROUPS, readProblem, signature, toActions, type AppAction, type AppWindow, type LogRow } from './appActions'
 
 type Layer =
   | { kind: 'home' }
