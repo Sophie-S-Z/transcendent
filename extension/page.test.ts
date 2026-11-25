@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { clip, mergeLabel, rankTier0, riskOf } from '../src/core/actions'
-import { FIXED, isCardField, toCsv, type PageAction } from './page'
+import { appendLog, describePage, FIXED, isCardField, LOG_MAX, mergeRanking, toCsv, type LogRow, type PageAction } from './page'
 
 const field = { autocomplete: '', name: '', id: '', label: '', placeholder: '' }
 const act = (id: string, patch: Partial<PageAction> = {}): PageAction => ({
@@ -90,5 +90,45 @@ describe('toCsv', () => {
   it('quotes cells and defuses formulas', () => {
     const csv = toCsv([{ time: 't', site: 'http://a', label: '=HYPERLINK("x")', risk: 'safe' }])
     expect(csv.split('\n')[1]).toBe('"t","http://a","\'=HYPERLINK(""x"")","safe"')
+  })
+})
+
+describe('describePage', () => {
+  it('joins the title and the text, with the whitespace collapsed', () => {
+    expect(describePage(' Inbox \n', 'Maya Chen\n\n  Lunch on Friday?')).toBe('The web page "Inbox": Maya Chen Lunch on Friday?')
+  })
+  it('clips the text to about 600 characters', () => {
+    const d = describePage('Long', 'word '.repeat(500))
+    expect(d.length).toBeLessThanOrEqual('The web page "Long": '.length + 600)
+    expect(d.endsWith('…')).toBe(true)
+  })
+  it('works without a title or text', () => {
+    expect(describePage('', 'Hello')).toBe('The web page: Hello')
+    expect(describePage('Inbox', '  ')).toBe('The web page "Inbox"')
+  })
+})
+
+describe('mergeRanking', () => {
+  const tier0 = [act('a'), act('b'), act('c'), act('send', { risk: 'irreversible' })]
+  const ids = (ranked: PageAction[]) => ranked.map((a) => a.id)
+  it('puts the model order first, then the Tier 0 order', () => {
+    expect(ids(mergeRanking(['c', 'a'], tier0))).toEqual(['c', 'a', 'b', 'send'])
+  })
+  it('keeps irreversible actions last, whatever the model says', () => {
+    expect(ids(mergeRanking(['send', 'b'], tier0))).toEqual(['b', 'a', 'c', 'send'])
+  })
+  it('ignores IDs that are not on the list', () => {
+    expect(ids(mergeRanking(['x', 'b'], tier0))).toEqual(['b', 'a', 'c', 'send'])
+  })
+})
+
+describe('appendLog', () => {
+  it('keeps the newest rows', () => {
+    const row = (label: string): LogRow => ({ time: 't', site: 's', label, risk: 'safe' })
+    const full = Array.from({ length: LOG_MAX }, (_, i) => row(String(i)))
+    const next = appendLog(full, row('new'))
+    expect(next.length).toBe(LOG_MAX)
+    expect(next[0].label).toBe('1')
+    expect(next.at(-1)?.label).toBe('new')
   })
 })

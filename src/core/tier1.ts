@@ -1,5 +1,6 @@
 // Tier 1 predictor: a small open model in the browser (WebLLM) ranks the list of valid actions.
 // The model only ranks the given list. filterValid drops every ID that is not valid.
+// The extension uses rankList with a description of the web page.
 
 import type { MLCEngineInterface } from '@mlc-ai/web-llm'
 import { filterValid, type Action, type Workspace } from './workspace'
@@ -26,14 +27,14 @@ function describe(ws: Workspace): string {
   return `The ${app} list${query ? `, search "${query}"` : ''}.`
 }
 
-/** Builds the prompt: a short description of the current view, and the numbered list of valid action labels (excluding help). Asks for the best 5 numbers, comma-separated, best first, and nothing else. */
-export function rankPrompt(ws: Workspace, actions: Action[]): string {
-  const list = actions.map((a, i) => `${i + 1}. ${a.label}`).join('\n')
-  return `The user sees: ${describe(ws)}\n\nActions:\n${list}\n\nWhich 5 actions will the user most likely choose next? Answer with 5 numbers, comma-separated, best first, and nothing else.`
+/** Builds the prompt: a short description of the screen, and the numbered list of action labels (excluding help). Asks for the best 5 numbers, comma-separated, best first, and nothing else. The web app and the extension share it. */
+export function rankPrompt(description: string, labels: string[]): string {
+  const list = labels.map((label, i) => `${i + 1}. ${label}`).join('\n')
+  return `The user sees: ${description}\n\nActions:\n${list}\n\nWhich 5 actions will the user most likely choose next? Answer with 5 numbers, comma-separated, best first, and nothing else.`
 }
 
 /** Parses the model output: takes integers in order, maps 1-based numbers to action IDs, drops numbers out of range and duplicates. Never throws. */
-export function parseRanking(output: string, actions: Action[]): string[] {
+export function parseRanking(output: string, actions: { id: string }[]): string[] {
   const ids = (output.match(/\d+/g) ?? []).flatMap((n) => actions[Number(n) - 1]?.id ?? [])
   return [...new Set(ids)]
 }
@@ -44,13 +45,17 @@ export async function loadEngine(onProgress: (text: string) => void): Promise<En
   return CreateMLCEngine(MODEL_ID, { initProgressCallback: (p) => onProgress(p.text) })
 }
 
-/** Asks the model to rank, with temperature 0 and max_tokens about 20. Returns valid IDs, best first, through filterValid. */
-export async function rankWithModel(engine: Engine, ws: Workspace, actions: Action[]): Promise<string[]> {
+/** Asks the model to rank the listed actions, with temperature 0 and max_tokens about 20. Returns only listed IDs, best first. */
+export async function rankList(engine: Engine, description: string, actions: { id: string; label: string }[]): Promise<string[]> {
   const reply = await engine.chat.completions.create({
-    messages: [{ role: 'user', content: rankPrompt(ws, actions) }],
+    messages: [{ role: 'user', content: rankPrompt(description, actions.map((a) => a.label)) }],
     temperature: 0,
     max_tokens: 20,
   })
-  const ids = parseRanking(reply.choices[0]?.message.content ?? '', actions)
-  return filterValid(ws, ids).map((a) => a.id)
+  return parseRanking(reply.choices[0]?.message.content ?? '', actions)
+}
+
+/** Ranks the workspace actions. Returns valid IDs, best first, through filterValid. */
+export async function rankWithModel(engine: Engine, ws: Workspace, actions: Action[]): Promise<string[]> {
+  return filterValid(ws, await rankList(engine, describe(ws), actions)).map((a) => a.id)
 }

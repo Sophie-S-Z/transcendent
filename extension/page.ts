@@ -1,13 +1,16 @@
-// Pure parts of the page reader: the fixed actions, card-field detection, the groups, and the CSV log.
+// Pure parts of the page reader: the fixed actions, card-field detection, the groups, the Tier 1 parts, and the log.
 // The content script and the side panel both use them. No DOM access here, so tests run in node.
 
-import type { Region, Risk } from '../src/core/actions'
+import { clip, type Region, type Risk } from '../src/core/actions'
 
 export type Kind = 'click' | 'type' | 'scroll' | 'back' | 'next-tab'
 /** One valid action on the page. `fill` marks an empty field in the form that has focus. */
 export type PageAction = { id: string; kind: Kind; label: string; risk: Risk; region: Region; fill?: boolean }
-/** What the reader sends to the panel. `payments` is true when the page has a card field. */
-export type PageState = { actions: PageAction[]; payments: boolean }
+/**
+ * What the reader sends to the panel. `payments` is true when the page has a card field.
+ * `description` is page text for the Tier 1 prompt. It is data: the model only orders the listed actions.
+ */
+export type PageState = { actions: PageAction[]; payments: boolean; description: string }
 export type LogRow = { time: string; site: string; label: string; risk: Risk }
 
 export const FIXED: PageAction[] = [
@@ -36,6 +39,23 @@ export const GROUPS: [string, (a: PageAction) => boolean][] = [
   ['Scroll and move', (a) => allowedWithPayments(a.kind)],
   ['Send, buy, or delete', (a) => a.risk === 'irreversible'],
 ]
+
+/** The page title and the start of the visible main text, with the whitespace collapsed. */
+export function describePage(title: string, text: string): string {
+  const t = clip(title, 100)
+  const body = clip(text, 600)
+  return `The web page${t && ` "${t}"`}${body && `: ${body}`}`
+}
+
+/** The Tier 1 order first, then the Tier 0 order. Irreversible actions stay last, whatever the model says. IDs not on the list do nothing. */
+export function mergeRanking(ids: string[], tier0: PageAction[]): PageAction[] {
+  const merged = [...ids.flatMap((id) => tier0.find((a) => a.id === id) ?? []), ...tier0.filter((a) => !ids.includes(a.id))]
+  return [...merged.filter((a) => a.risk !== 'irreversible'), ...merged.filter((a) => a.risk === 'irreversible')]
+}
+
+/** The log keeps the newest 5,000 rows. */
+export const LOG_MAX = 5000
+export const appendLog = (log: LogRow[], row: LogRow) => [...log, row].slice(-LOG_MAX)
 
 /** One CSV cell. Quotes every cell, and stops a spreadsheet from reading page text as a formula. */
 const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`
