@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import {
   calibrate,
+  heldBlinkDone,
+  holdFor,
   HOLD_MAX_MS,
   HOLD_MIN_MS,
   initialBlink,
@@ -12,10 +14,12 @@ import { useFaceBlink, type FaceFrame } from '../input/useFaceBlink'
 import { click } from '../ui/click'
 import { Ring } from '../ui/Ring'
 
-// Gate A prototype: calibrate, then count false selects during 5 minutes of reading.
-const NATURAL_MS = 20_000
-const HELD_MS = 10_000
-const READ_MS = 5 * 60_000
+// Calibration: 10 s of natural blinks, then one held blink (the stage stops when it ends, 8 s or less).
+// Gate A: 90 s of reading. The PRD target is 1 false select or fewer in 5 minutes, so the pass in 90 s is 0.
+// The reading test also measures the longest natural blink and raises the hold time if that blink came close.
+const NATURAL_MS = 10_000
+const HELD_MS = 8_000
+const READ_MS = 90_000
 
 type Stage =
   | { name: 'idle' | 'failed' }
@@ -24,7 +28,7 @@ type Stage =
 const PROMPT: Record<Stage['name'], string> = {
   idle: 'Sit 50 to 70 cm from the camera, with light on your face.',
   natural: 'Look at the screen and blink as you normally do.',
-  held: 'Close your eyes, keep them closed for 2 seconds, then open them.',
+  held: 'Close your eyes now. Keep them closed for 1 second, then open them.',
   reading: 'Read the text below. Do not hold a blink.',
   failed: 'Calibration did not find a clear held blink. Try again with more light.',
 }
@@ -36,13 +40,14 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
   const [frame, setFrame] = useState<FaceFrame | null>(null)
   const [progress, setProgress] = useState(0)
   const [selects, setSelects] = useState(0)
-  const [falseSelects, setFalseSelects] = useState<number | null>(null)
+  const [gate, setGate] = useState<{ falseSelects: number; longest: number; holdMs: number } | null>(null)
   const [glow, setGlow] = useState(false)
 
   const machine = useRef(initialBlink)
   const natural = useRef<Sample[]>([])
   const held = useRef<Sample[]>([])
   const readCount = useRef(0)
+  const longest = useRef(0)
 
   const { videoRef, status, error } = useFaceBlink((f) => {
     setFrame(f)
@@ -56,7 +61,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
     }
     if (stage.name === 'held') {
       held.current.push(...sample)
-      if (f.t - stage.start >= HELD_MS) {
+      if (heldBlinkDone(natural.current, held.current) || f.t - stage.start >= HELD_MS) {
         const next = calibrate(natural.current, held.current)
         if (next) setCfg(next)
         setStage({ name: next ? 'idle' : 'failed' })
@@ -64,13 +69,19 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
       return
     }
     if (stage.name === 'reading' && f.t - stage.start >= READ_MS) {
-      setFalseSelects(readCount.current)
+      const holdMs = Math.max(cfg.holdMs, holdFor(longest.current))
+      setCfg({ ...cfg, holdMs })
+      setGate({ falseSelects: readCount.current, longest: longest.current, holdMs })
       setStage({ name: 'idle' })
     }
     if (f.score === null) return
 
-    const r = stepBlink(machine.current, f.score, f.t, cfg)
+    const prev = machine.current
+    const r = stepBlink(prev, f.score, f.t, cfg)
     machine.current = r.state
+    // A blink that closed and opened again with no select is a natural blink. Keep the longest one.
+    if (stage.name === 'reading' && prev.phase === 'closed' && r.state.phase === 'open')
+      longest.current = Math.max(longest.current, f.t - prev.since)
     setProgress(r.progress)
     if (r.select) {
       click()
@@ -88,7 +99,9 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
   }
   const startReading = () => {
     readCount.current = 0
-    setFalseSelects(null)
+    longest.current = 0
+    machine.current = initialBlink
+    setGate(null)
     setStage({ name: 'reading', start: performance.now() })
   }
   const remaining = 'start' in stage && frame ? Math.max(0, stageLength(stage.name) - (frame.t - stage.start)) : 0
@@ -113,7 +126,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
         <dl className="grid grid-cols-2 gap-x-6 gap-y-2 font-mono">
           <dt className="text-muted">Score</dt>
           <dd>{frame?.score == null ? 'No face' : frame.score.toFixed(2)}</dd>
-          <dt className="text-muted">Detect</dt>
+          <dt className="text-muted">Frame time</dt>
           <dd>{frame ? `${frame.detectMs.toFixed(0)} ms` : '-'}</dd>
           <dt className="text-muted">Threshold</dt>
           <dd>{cfg.threshold.toFixed(2)}</dd>
@@ -125,18 +138,23 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
       <section className="flex flex-col gap-4 rounded-2xl bg-surface p-8">
         <p className="text-3xl">{PROMPT[stage.name]}</p>
         {busy && <p className="font-mono text-muted">{Math.ceil(remaining / 1000)} s left</p>}
-        {falseSelects !== null && (
-          <p className="text-3xl">
-            Gate A: {falseSelects} false {falseSelects === 1 ? 'select' : 'selects'} in 5 minutes.{' '}
-            <strong className="text-accent">{falseSelects <= 1 ? 'Pass' : 'Fail'}</strong>
-          </p>
+        {gate && (
+          <div className="flex flex-col gap-2">
+            <p className="text-3xl">
+              Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 90 s.{' '}
+              <strong className="text-accent">{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
+            </p>
+            <p className="font-mono text-muted">
+              Longest natural blink {gate.longest} ms. Hold time {gate.holdMs} ms. Margin {gate.holdMs - gate.longest} ms.
+            </p>
+          </div>
         )}
         <div className="flex flex-wrap gap-4">
           <button disabled={busy || status !== 'ready'} onClick={startCalibration} className={buttonClass(true)}>
-            Calibrate (30 s)
+            Calibrate (about 15 s)
           </button>
           <button disabled={busy || status !== 'ready'} onClick={startReading} className={buttonClass(false)}>
-            Start 5-minute reading test
+            Start 90-second reading test
           </button>
           <button disabled={busy} onClick={() => onDone(cfg)} className={buttonClass(false)}>
             Save and close
@@ -203,8 +221,8 @@ function ReadingText() {
       </p>
       <p>
         This test measures false selects. Read at your normal speed and blink as you normally do. Move your head a
-        little, as you do when you read. At the end of five minutes, the screen shows the number of selects that
-        occurred. One false select or fewer is a pass.
+        little, as you do when you read. At the end of 90 seconds, the screen shows the number of selects that
+        occurred. Zero false selects is a pass. The test also raises the hold time if a natural blink came close to it.
       </p>
       <p>
         If the test fails, calibrate again in better light, or increase the hold time. Glasses can reduce the quality of

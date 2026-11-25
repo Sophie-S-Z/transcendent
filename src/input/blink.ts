@@ -8,6 +8,11 @@ export type Sample = { t: number; score: number }
 export const DEFAULT_CONFIG: BlinkConfig = { threshold: 0.5, holdMs: 500 }
 export const HOLD_MIN_MS = 300
 export const HOLD_MAX_MS = 1500
+// Calibration never sets a hold time below this floor, and keeps this margin above the longest natural blink.
+const HOLD_FLOOR_MS = 400
+const HOLD_MARGIN_MS = 250
+// A held blink in calibration closes the eyes for at least this time.
+const HELD_RUN_MS = 800
 // The eyes must open past this fraction of the threshold to end a blink. This stops flicker at the edge.
 const RELEASE = 0.8
 
@@ -65,21 +70,36 @@ export function closedRuns(samples: Sample[], threshold: number): number[] {
   return runs
 }
 
+/** The hold time for the longest natural blink that the app saw: that blink plus a margin, inside the range. */
+export function holdFor(longestNaturalMs: number): number {
+  return Math.round(Math.min(HOLD_MAX_MS, Math.max(HOLD_FLOOR_MS, longestNaturalMs + HOLD_MARGIN_MS)))
+}
+
+/** The open-eye score: the median of the natural recording. */
+const openLevel = (natural: Sample[]) => percentile(natural.map((s) => s.score), 0.5)
+
+/**
+ * True when the held recording has one closed run of 800 ms or more, and the eyes are open again.
+ * Calibration stops at this point, so the user does not wait for a fixed time.
+ */
+export function heldBlinkDone(natural: Sample[], held: Sample[]): boolean {
+  const level = Math.min(0.9, openLevel(natural) + 0.3)
+  return closedRuns(held, level).some((ms) => ms >= HELD_RUN_MS)
+}
+
 /**
  * Sets the threshold and the hold time from two recordings:
  * `natural` is normal viewing with natural blinks, `held` is one held blink.
  * The open-eye score is the median of the natural recording. The held-blink score is the 90th percentile
  * of the held recording, because the eyes are open for part of that recording.
  * The threshold is the middle point between the two scores.
- * The hold time is the longest natural blink plus a margin, inside the allowed range.
+ * The hold time comes from holdFor() and the longest natural blink.
  * Returns null when the two recordings do not separate, so the caller can ask the user to try again.
  */
 export function calibrate(natural: Sample[], held: Sample[]): BlinkConfig | null {
-  const open = percentile(natural.map((s) => s.score), 0.5)
+  const open = openLevel(natural)
   const closed = percentile(held.map((s) => s.score), 0.9)
   if (closed - open < 0.2) return null
   const threshold = (open + closed) / 2
-  const longest = Math.max(0, ...closedRuns(natural, threshold))
-  const holdMs = Math.round(Math.min(HOLD_MAX_MS, Math.max(HOLD_MIN_MS, longest + 250)))
-  return { threshold, holdMs }
+  return { threshold, holdMs: holdFor(Math.max(0, ...closedRuns(natural, threshold))) }
 }

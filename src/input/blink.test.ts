@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calibrate, closedRuns, initialBlink, stepBlink, type Sample } from './blink'
+import { calibrate, closedRuns, heldBlinkDone, holdFor, initialBlink, stepBlink, type Sample } from './blink'
 
 const cfg = { threshold: 0.5, holdMs: 500 }
 
@@ -65,6 +65,18 @@ describe('calibrate', () => {
     const c = calibrate(natural, realHeld)
     expect(c).not.toBeNull()
     expect(c!.threshold).toBeGreaterThan(0.3)
+  })
+
+  it('stops the held stage only after a closed run of 800 ms or more ends', () => {
+    expect(heldBlinkDone(natural, series([...frames(5, 0.05), ...frames(30, 0.85)]))).toBe(false) // still closed
+    expect(heldBlinkDone(natural, series([...frames(5, 0.05), ...frames(10, 0.85), ...frames(5, 0.05)]))).toBe(false) // 330 ms
+    expect(heldBlinkDone(natural, series([...frames(5, 0.05), ...frames(30, 0.85), ...frames(2, 0.05)]))).toBe(true)
+  })
+
+  it('keeps the hold time 250 ms above the longest natural blink, from 400 to 1500 ms', () => {
+    expect(holdFor(0)).toBe(400)
+    expect(holdFor(300)).toBe(550)
+    expect(holdFor(5000)).toBe(1500)
   })
 
   it('returns null when the held blink does not differ from open eyes', () => {
