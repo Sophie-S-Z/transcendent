@@ -10,12 +10,14 @@ export type Settings = {
   sound: boolean
   mode: Mode
   tester: string
+  /** The scenario pack for demo mode. 'eval' is the measured set. */
+  scenario: string
 }
 
 export const STEP_MIN_MS = 600
 export const STEP_MAX_MS = 3000
 
-const DEFAULTS: Settings = { blink: DEFAULT_CONFIG, camera: true, stepMs: 1200, sound: true, mode: 'tier0', tester: '' }
+const DEFAULTS: Settings = { blink: DEFAULT_CONFIG, camera: true, stepMs: 1200, sound: true, mode: 'tier0', tester: '', scenario: 'eval' }
 const KEY = 'transcendent.settings'
 
 export function loadSettings(): Settings {

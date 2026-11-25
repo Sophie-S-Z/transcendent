@@ -21,10 +21,12 @@ export type TaskRecord = {
   completed: boolean
   /** ISO time. */
   startedAt: string
+  /** The scenario pack. Records from before scenarios have none; they belong to 'eval'. */
+  scenario?: string
 }
 
 const COLUMNS: (keyof TaskRecord)[] = [
-  'session', 'tester', 'mode', 'task', 'signals', 'ms', 'errors', 'topHits', 'top5Hits', 'steps', 'completed', 'startedAt',
+  'session', 'tester', 'mode', 'task', 'signals', 'ms', 'errors', 'topHits', 'top5Hits', 'steps', 'completed', 'startedAt', 'scenario',
 ]
 
 /** Puts a field in quotes when it has a comma, a quote, or a line break (RFC 4180). */
@@ -34,7 +36,7 @@ const field = (v: unknown) => {
 }
 
 export function toCsv(records: TaskRecord[]): string {
-  return [COLUMNS, ...records.map((r) => COLUMNS.map((c) => r[c]))].map((row) => row.map(field).join(',')).join('\r\n')
+  return [COLUMNS, ...records.map((r) => COLUMNS.map((c) => r[c] ?? ''))].map((row) => row.map(field).join(',')).join('\r\n')
 }
 
 export type Summary = {

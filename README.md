@@ -22,11 +22,31 @@ The baseline mode uses the same workspace with fixed category menus and the scan
 
 `npm run simulate` runs a simulated user that uses only the space bar and always selects the correct item. Its counts are the lowest possible for this design. They are not results from people.
 
+### Demo scenarios
+
+The setup screen has a scenario list. "Evaluation" is the measured set above. Five more packs give the demo its own sample data, tasks, and automatic checks: Needs and care, Work mail and calendar, Study, Health, and Judges’ live demo. A sixth pack, Setup, is a 2-step checklist for the caregiver on the setup screen. The profiles in the packs are illustrative. They are not real people. The log records the scenario with each task (`src/eval/scenarios.ts`).
+
 ### Limits
 
 - No person with a motor impairment tested the app. The testers had no motor impairment.
 - The sample data and the reply drafts were written with knowledge of the 10 tasks. The hold-out tasks, written by a second person after the code freeze, check this bias.
 - The keyboard has no capital letters.
+
+## Chrome extension (Phases 1 and 2)
+
+The extension runs the same loop on real web pages. A page reader lists the visible links, buttons, fields, and headings, and the ranker only ranks that list (`extension/`).
+
+- The extension asks for no site at install. The caregiver turns on each site by name in the side panel.
+- Send, post, pay, delete, and submit actions always open a confirm screen with Cancel first. A button whose page name differs from its visible text shows both names.
+- The extension refuses every click and every text entry on a page with a card field.
+- A held blink selects when the eyes open. A held blink of 3 seconds, or the Escape key, stops the scan.
+- Each action goes to a log on the device. The panel can export or delete it.
+
+To load it, run `npm run build:extension`. Open `chrome://extensions`, turn on Developer mode, select "Load unpacked", and select `extension/dist`. The demo sites for the Phase 1 gate are in `public/demo-sites` (mail, video, shop). `npm run test:extension` runs the end-to-end test, which includes hostile pages with hidden and fake buttons.
+
+## Windows blink switch (Phase 3)
+
+A small Tauri app turns one held blink into one Space key press for the whole system. The Windows On-Screen Keyboard in scan mode then controls any app. See `desktop/README.md`. The "Desktop app" GitHub workflow builds the Windows installer.
 
 ## Run
 
@@ -40,9 +60,10 @@ npm run dev
 ```sh
 npm run check      # lint, type check, unit tests
 npm run build
+npm run test:extension
 npx vite preview --port 4173 & npm run simulate
 ```
 
 ## Stack
 
-TypeScript, React, Vite, Tailwind CSS, MediaPipe Face Landmarker, WebLLM, Paper Shaders (the backdrop and the chrome mark), Familjen Grotesk and IBM Plex Mono. The face model is in `public/models`. The MediaPipe WebAssembly files are copied from `node_modules` on install.
+TypeScript, React, Vite, Tailwind CSS, MediaPipe Face Landmarker, WebLLM, Paper Shaders (the backdrop and the metal mark), Tauri (the Windows switch), Familjen Grotesk and IBM Plex Mono. The face model is in `public/models`. The MediaPipe WebAssembly files are copied from `node_modules` on install.

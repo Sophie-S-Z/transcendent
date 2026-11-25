@@ -25,3 +25,9 @@ dist-ssr
 
 # Copied from node_modules on install
 public/mediapipe
+
+# Build output of the extension and the desktop app
+extension/dist
+desktop/dist
+desktop/src-tauri/target
+desktop/src-tauri/gen

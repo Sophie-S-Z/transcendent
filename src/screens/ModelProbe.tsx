@@ -61,7 +61,7 @@ export function ModelProbe() {
   }
 
   const med = times.length === 5 ? median(times) : undefined
-  const button = 'btn chrome px-6 text-lg'
+  const button = 'btn lit px-6 text-lg'
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-10 px-10 py-10">

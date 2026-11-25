@@ -41,6 +41,7 @@ export default function App() {
                   steps: 0,
                   completed: falseSelects === 0,
                   startedAt: new Date(Date.now() - ms).toISOString(),
+                  scenario: settings.scenario,
                 },
               ])
             }

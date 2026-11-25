@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+  Checkout of the demo shop. It has card fields, so the Transcendent extension refuses every action
+  except scroll, back, and next tab, and the panel says why. Nothing is sent: the form only shows a note.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Checkout, Corner Market</title>
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <header><a class="brand" href="shop.html" style="color: inherit; text-decoration: none">Corner Market</a></header>
+    <main style="padding: 24px; max-width: 560px">
+      <h1>Checkout</h1>
+      <form id="pay" class="card">
+        <label>Full name <input autocomplete="name" /></label>
+        <label>Address <input autocomplete="street-address" /></label>
+        <label>Card number <input id="cardnumber" autocomplete="cc-number" inputmode="numeric" /></label>
+        <label>Expiry date <input autocomplete="cc-exp" placeholder="MM / YY" /></label>
+        <label>Security code <input autocomplete="cc-csc" /></label>
+        <button class="primary">Place order</button>
+        <p id="note" class="muted"></p>
+      </form>
+      <p><a href="shop.html#cart">Back to the cart</a></p>
+    </main>
+    <script>
+      // A demo: the order is never sent anywhere.
+      document.getElementById('pay').onsubmit = (e) => {
+        e.preventDefault()
+        document.getElementById('note').textContent = 'This is a demo shop. No order was placed.'
+      }
+    </script>
+  </body>
+</html>

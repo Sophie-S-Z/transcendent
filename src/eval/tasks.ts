@@ -16,8 +16,8 @@ export type Task = {
 /** Lower case, no punctuation, single spaces. Use it to compare text. */
 export const normalize = (s: string) => words(s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '')).join(' ')
 
-const mail = (ws: Workspace, id: string) => ws.mails.find((m) => m.id === id)
-const lastFromMe = (ws: Workspace, threadId: string) =>
+export const mail = (ws: Workspace, id: string) => ws.mails.find((m) => m.id === id)
+export const lastFromMe = (ws: Workspace, threadId: string) =>
   ws.threads
     .find((t) => t.id === threadId)
     ?.messages.filter((m) => m.from === 'me')
@@ -43,7 +43,7 @@ const TASK_LIST: Omit<Task, 'start'>[] = [
   {
     id: 3,
     title: 'Message the caregiver',
-    instruction: 'Tell Sam, your caregiver: "I need water".',
+    instruction: 'Tell Sam, your caregiver: “I need water”.',
     done: (ws) => normalize(lastFromMe(ws, CAREGIVER)).includes('i need water'),
   },
   {
@@ -61,7 +61,7 @@ const TASK_LIST: Omit<Task, 'start'>[] = [
   {
     id: 6,
     title: 'Archive an email',
-    instruction: 'Archive the "Weekly deals" email.',
+    instruction: 'Archive the “Weekly deals” email.',
     done: (ws) => mail(ws, 'mail-deals')?.archived === true,
   },
   {
@@ -73,19 +73,19 @@ const TASK_LIST: Omit<Task, 'start'>[] = [
   {
     id: 8,
     title: 'Complete a to-do',
-    instruction: 'Mark "Call the pharmacy" as done.',
+    instruction: 'Mark “Call the pharmacy” as done.',
     done: (ws) => ws.todos.some((t) => t.id === 'todo-pharmacy' && t.done),
   },
   {
     id: 9,
     title: 'Answer Mom',
-    instruction: 'Answer Mom: "Yes, I am free to talk after dinner."',
+    instruction: 'Answer Mom: “Yes, I am free to talk after dinner.”',
     done: (ws) => normalize(lastFromMe(ws, 'thread-mom')) === normalize('Yes, I am free to talk after dinner.'),
   },
   {
     id: 10,
     title: 'Find a note',
-    instruction: 'Find the note with the word "medicine". Open it.',
+    instruction: 'Find the note with the word “medicine”. Open it.',
     done: (ws) => ws.view.app === 'notes' && ws.view.open === 'note-doctor',
   },
 ]

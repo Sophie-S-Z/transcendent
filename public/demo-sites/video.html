@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  Demo video site for the Transcendent extension. Local only: no external requests, and the player is a fake.
+  Phase 1 gate tasks:
+  1. Search for "bread".
+  2. Open the video "Sourdough for beginners".
+  3. Pause the video, then play it again.
+  4. Open the next video in the Up next list.
+  5. Scroll down to the comments, then go back to the home page.
+  "Post comment" is irreversible by the risk check, so the panel asks to confirm it.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clipboard Video</title>
+    <link rel="stylesheet" href="demo.css" />
+    <style>
+      .player { aspect-ratio: 16 / 9; max-width: 860px; border-radius: 8px; background: #111827; color: #fff; display: grid; place-items: center; font-size: 22px; }
+      .watch { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; padding: 24px; }
+      .comments { margin-top: 600px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#home" style="color: inherit; text-decoration: none">Clipboard</a>
+      <form id="search" role="search">
+        <input id="q" type="search" aria-label="Search videos" placeholder="Search" />
+        <button>Search</button>
+      </form>
+    </header>
+    <div id="view"></div>
+    <script>
+      // Fakes a video site in this page. The address bar hash picks the view, so Go back works.
+      const videos = [
+        ['v1', 'Sourdough for beginners', 'Home Bakery', '12:04'],
+        ['v2', 'Quick flatbread with no oven', 'Home Bakery', '6:30'],
+        ['v3', 'Bread rolls in one hour', 'Kitchen Basics', '9:12'],
+        ['v4', 'A walk through Kyoto in the rain', 'Slow Travel', '21:40'],
+        ['v5', 'Gentle stretches you can do seated', 'Move Daily', '14:05'],
+        ['v6', 'How tides work', 'Science Minute', '4:58'],
+      ].map(([id, title, channel, length]) => ({ id, title, channel, length }))
+      let playing = true
+
+      const el = (tag, props = {}, ...kids) => {
+        const e = Object.assign(document.createElement(tag), props)
+        e.append(...kids)
+        return e
+      }
+      const tile = (v) =>
+        el('a', { href: `#watch/${v.id}`, style: 'color:inherit;text-decoration:none' },
+          el('div', { className: 'thumb', textContent: v.length }),
+          el('p', { style: 'margin:8px 0 0;font-weight:600', textContent: v.title }),
+          el('p', { className: 'muted', style: 'margin:0', textContent: v.channel }))
+
+      function render() {
+        const [route, arg] = location.hash.slice(1).split('/')
+        const view = document.getElementById('view')
+        view.replaceChildren()
+        if (route === 'watch') {
+          const i = videos.findIndex((v) => v.id === arg)
+          const v = videos[i]
+          if (!v) return (location.hash = '#home')
+          const state = el('span', { textContent: playing ? 'Playing' : 'Paused' })
+          const toggle = el('button', { textContent: playing ? 'Pause' : 'Play' })
+          toggle.onclick = () => {
+            playing = !playing
+            state.textContent = playing ? 'Playing' : 'Paused'
+            toggle.textContent = playing ? 'Pause' : 'Play'
+          }
+          const comments = el('ul', { className: 'list' }, el('li', {}, el('p', { style: 'padding:8px 16px', textContent: 'Ana: This finally worked for me, thank you.' })))
+          const box = el('input', { id: 'comment', type: 'text', placeholder: 'Add a comment', ariaLabel: 'Add a comment' })
+          const form = el('form', { className: 'toolbar' }, box, el('button', { textContent: 'Post comment' }))
+          form.onsubmit = (e) => {
+            e.preventDefault()
+            if (!box.value.trim()) return
+            comments.append(el('li', {}, el('p', { style: 'padding:8px 16px', textContent: `You: ${box.value}` })))
+            box.value = ''
+          }
+          const up = videos.filter((x) => x.id !== v.id)
+          view.append(
+            el('div', { className: 'watch' },
+              el('main', {},
+                el('div', { className: 'player' }, state),
+                el('h1', { textContent: v.title }),
+                el('div', { className: 'toolbar' }, toggle, el('button', { textContent: 'Like' }), el('button', { textContent: `Subscribe to ${v.channel}` })),
+                el('section', { className: 'comments' }, el('h2', { textContent: 'Comments' }), form, comments)),
+              el('aside', {}, el('h2', { textContent: 'Up next' }), ...up.slice(0, 3).map((x) => el('div', { style: 'margin-bottom:16px' }, tile(x))))),
+          )
+          return
+        }
+        const q = route === 'search' ? decodeURIComponent(arg ?? '').toLowerCase() : ''
+        const shown = videos.filter((v) => `${v.title} ${v.channel}`.toLowerCase().includes(q))
+        view.append(
+          el('main', { style: 'padding:24px' },
+            el('h1', { textContent: q ? `Results for “${q}”` : 'Recommended' }),
+            el('div', { className: 'grid' }, ...shown.map(tile))),
+        )
+      }
+
+      document.getElementById('search').onsubmit = (e) => {
+        e.preventDefault()
+        const q = document.getElementById('q').value.trim()
+        if (q) location.hash = `#search/${encodeURIComponent(q)}`
+      }
+      addEventListener('hashchange', () => ((playing = true), render()))
+      render()
+    </script>
+  </body>
+</html>

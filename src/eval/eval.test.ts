@@ -57,8 +57,14 @@ const rec = (r: Partial<TaskRecord>): TaskRecord => ({
 describe('log', () => {
   it('toCsv quotes a field with a comma and a quote', () => {
     const lines = toCsv([rec({ tester: 'Lee, "Al"' })]).split('\r\n')
-    expect(lines[0]).toBe('session,tester,mode,task,signals,ms,errors,topHits,top5Hits,steps,completed,startedAt')
-    expect(lines[1]).toBe('s1,"Lee, ""Al""",baseline,1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z')
+    expect(lines[0]).toBe('session,tester,mode,task,signals,ms,errors,topHits,top5Hits,steps,completed,startedAt,scenario')
+    expect(lines[1]).toBe('s1,"Lee, ""Al""",baseline,1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,')
+  })
+
+  it('toCsv prints the scenario, and an empty field for an old record without one', () => {
+    const lines = toCsv([rec({ task: 'care-1', scenario: 'care' }), rec({})]).split('\r\n')
+    expect(lines[1]).toBe('s1,t1,baseline,care-1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,care')
+    expect(lines[2]).toBe('s1,t1,baseline,1,10,1000,0,0,0,0,true,2026-11-24T10:00:00.000Z,')
   })
 
   it('median of odd, even, and empty lists', () => {

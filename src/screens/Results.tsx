@@ -1,5 +1,7 @@
 // The results screen for the observer and the judges (T15). It shows signals and time next to the baseline.
+import { Fragment } from 'react'
 import { median, savingPct, summarize, toCsv, type Mode, type TaskRecord } from '../eval/log'
+import { SCENARIOS } from '../eval/scenarios'
 import { TASKS } from '../eval/tasks'
 
 const ORDER: Mode[] = ['baseline', 'tier0', 'tier1']
@@ -27,11 +29,21 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
   const summaries = summarize(records).sort((a, b) => ORDER.indexOf(a.mode) - ORDER.indexOf(b.mode))
   const baseline = summaries.find((s) => s.mode === 'baseline')
   const done = records.filter((r) => r.completed)
-  const ids: (number | string)[] = TASKS.map((t) => t.id)
-  for (const r of done) if (!ids.includes(r.task)) ids.push(r.task)
-  const title = (id: number | string) => TASKS.find((t) => t.id === id)?.title ?? String(id)
-  const cell = (id: number | string, mode: Mode) => {
-    const xs = done.filter((r) => r.task === id && r.mode === mode).map((r) => r.signals)
+  // One row for each scenario and task, grouped in scenario order. Records without a scenario belong to 'eval'.
+  const scenarioOf = (r: TaskRecord) => r.scenario ?? 'eval'
+  const rows: { scenario: string; id: number | string }[] = TASKS.map((t) => ({ scenario: 'eval', id: t.id }))
+  for (const r of done)
+    if (!rows.some((x) => x.scenario === scenarioOf(r) && x.id === r.task)) rows.push({ scenario: scenarioOf(r), id: r.task })
+  // An unknown scenario goes last.
+  const order = (s: string) => {
+    const i = SCENARIOS.findIndex((x) => x.id === s)
+    return i < 0 ? SCENARIOS.length : i
+  }
+  rows.sort((a, b) => order(a.scenario) - order(b.scenario))
+  const scenarioName = (s: string) => SCENARIOS.find((x) => x.id === s)?.name ?? s
+  const title = (id: number | string) => SCENARIOS.flatMap((s) => s.tasks).find((t) => t.id === id)?.title ?? String(id)
+  const cell = (scenario: string, id: number | string, mode: Mode) => {
+    const xs = done.filter((r) => scenarioOf(r) === scenario && r.task === id && r.mode === mode).map((r) => r.signals)
     return xs.length ? String(median(xs)) : '-'
   }
 
@@ -39,7 +51,7 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
     <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-10 py-10">
       <header className="flex flex-wrap items-center gap-4 border-b border-line pb-5">
         <h1 className="mr-auto text-3xl font-bold">Results</h1>
-        <button type="button" onClick={() => exportCsv(records)} className="btn chrome px-6 text-lg">
+        <button type="button" onClick={() => exportCsv(records)} className="btn lit px-6 text-lg">
           Export CSV
         </button>
         <button type="button" onClick={onClose} className="btn btn-ghost px-6 text-lg">
@@ -100,18 +112,27 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
               </tr>
             </thead>
             <tbody>
-              {ids.map((id) => (
-                <tr key={String(id)} className="border-b border-line">
-                  <td className="py-2.5 pr-6">
-                    {typeof id === 'number' ? `${id}. ` : ''}
-                    {title(id)}
-                  </td>
-                  {summaries.map((s) => (
-                    <td key={s.mode} className="py-2.5 pr-6 font-mono">
-                      {cell(id, s.mode)}
+              {rows.map(({ scenario, id }, i) => (
+                <Fragment key={`${scenario}/${id}`}>
+                  {scenario !== rows[i - 1]?.scenario && (
+                    <tr className="border-b border-line">
+                      <th colSpan={summaries.length + 1} className="pt-6 pb-2 text-sm font-normal text-muted">
+                        {scenarioName(scenario)}
+                      </th>
+                    </tr>
+                  )}
+                  <tr className="border-b border-line">
+                    <td className="py-2.5 pr-6">
+                      {typeof id === 'number' ? `${id}. ` : ''}
+                      {title(id)}
                     </td>
-                  ))}
-                </tr>
+                    {summaries.map((s) => (
+                      <td key={s.mode} className="py-2.5 pr-6 font-mono">
+                        {cell(scenario, id, s.mode)}
+                      </td>
+                    ))}
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
