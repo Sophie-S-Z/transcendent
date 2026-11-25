@@ -32,6 +32,15 @@ export function typeKey(text: string, key: string): string {
   return text + key
 }
 
+/**
+ * The scan items for text entry. With no open row, the items are the rows. In an open row, the items are its keys.
+ * set gets the new text and the open row. DONE calls done when the text is not empty.
+ */
+export function keyItems(text: string, row: number | null, set: (text: string, row: number | null) => void, done: () => void) {
+  if (row === null) return KEY_ROWS.map((r, i) => ({ label: r.join(' '), run: () => set(text, i) }))
+  return KEY_ROWS[row].map((k) => ({ label: k, run: () => (k !== DONE ? set(typeKey(text, k), null) : text.trim() && done()) }))
+}
+
 // Common English words, most frequent first. They give the model a start before the workspace text.
 const COMMON = `the be to of and a in that have i it for not on with he as you do at this but his by from they we
 say her she or an will my one all would there their what so up out if about who get which go me when make can like

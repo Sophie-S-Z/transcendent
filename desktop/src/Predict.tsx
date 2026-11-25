@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { rankTier0 } from '../../src/core/actions'
 import { toCsv } from '../../src/core/csv'
 import type { BlinkConfig } from '../../src/input/blink'
+import { useScan, useScanTimer } from '../../src/input/useScan'
 import { useSignal } from '../../src/input/useSignal'
-import { DONE, KEY_ROWS, typeKey } from '../../src/text/entry'
+import { keyItems } from '../../src/text/entry'
 import { Card } from '../../src/ui/Card'
 import { click } from '../../src/ui/click'
 import { Ring } from '../../src/ui/Ring'
@@ -52,9 +53,8 @@ export function Predict({ blink }: { blink: BlinkConfig }) {
   const [win, setWin] = useState<AppWindow | null>(null)
   const [readError, setReadError] = useState('')
   const [notice, setNotice] = useState('')
-  const [layer, setLayer] = useState<Layer>({ kind: 'home' })
-  const [index, setIndex] = useState(0)
-  const [version, setVersion] = useState(0)
+  const scan = useScan<Layer>({ kind: 'home' })
+  const { layer, index, version, go } = scan
   const [reads, setReads] = useState(0)
   const [glow, setGlow] = useState(false)
   const [sure, setSure] = useState(false)
@@ -66,11 +66,6 @@ export function Predict({ blink }: { blink: BlinkConfig }) {
   const ranked = useMemo(() => rankTier0(actions, counts), [actions, counts])
   const shown = useRef('')
 
-  const go = (next: Layer) => {
-    setLayer(next)
-    setIndex(0)
-    setVersion((v) => v + 1)
-  }
   const home = () => go({ kind: 'home' })
   const stop = () => go({ kind: 'paused' })
 
@@ -150,10 +145,9 @@ export function Predict({ blink }: { blink: BlinkConfig }) {
       }
       case 'typing': {
         const { action, text } = layer
-        const type = (next: string) => go({ ...layer, text: next, row: null })
-        const finish = () => text.trim() && (action.risk === 'irreversible' ? go({ kind: 'confirm', action, text }) : execute(action, text))
-        if (layer.row !== null) return KEY_ROWS[layer.row].map((k) => ({ label: k, run: () => (k === DONE ? finish() : type(typeKey(text, k))) }))
-        return [...KEY_ROWS.map((r, i) => ({ label: r.join(' '), run: () => go({ ...layer, row: i }) })), { label: 'Cancel', run: home }]
+        const finish = () => (action.risk === 'irreversible' ? go({ kind: 'confirm', action, text }) : execute(action, text))
+        const keys = keyItems(text, layer.row, (next, row) => go({ ...layer, text: next, row }), finish)
+        return layer.row !== null ? keys : [...keys, { label: 'Cancel', run: home }]
       }
       case 'confirm':
         // Cancel is first, so a fast double signal cannot confirm.
@@ -183,21 +177,8 @@ export function Predict({ blink }: { blink: BlinkConfig }) {
   // A held blink selects when the eyes open. A hold of 3 seconds stops the scan and selects nothing.
   const { videoRef, progress, paused, status, error } = useSignal(onSelect, blink, true, () => stopRef.current())
 
-  // The highlight moves every 1.2 s. In a keyboard row, one full pass returns to the row list.
-  const scan = useRef({ index, count: items.length, layer })
-  useEffect(() => {
-    scan.current = { index, count: items.length, layer }
-  })
-  const stopped = layer.kind === 'paused' || paused
-  useEffect(() => {
-    if (stopped) return
-    const id = setInterval(() => {
-      const { index: i, count, layer: l } = scan.current
-      if (i + 1 >= count && l.kind === 'typing' && l.row !== null) go({ ...l, row: null })
-      else setIndex((i + 1) % count)
-    }, STEP_MS)
-    return () => clearInterval(id)
-  }, [version, stopped])
+  // The highlight moves every 1.2 s.
+  useScanTimer(scan, items.length, STEP_MS, layer.kind === 'paused' || paused)
 
   const exportCsv = () => {
     const a = document.createElement('a')
