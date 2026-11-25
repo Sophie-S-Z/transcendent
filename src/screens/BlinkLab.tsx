@@ -46,16 +46,16 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
 
   const { videoRef, status, error } = useFaceBlink((f) => {
     setFrame(f)
-    if (f.score === null) return
-    const sample = { t: f.t, score: f.score }
+    // Frames with no face give no sample, but the stage still ends on time.
+    const sample = f.score === null ? [] : [{ t: f.t, score: f.score }]
 
     if (stage.name === 'natural') {
-      natural.current.push(sample)
+      natural.current.push(...sample)
       if (f.t - stage.start >= NATURAL_MS) setStage({ name: 'held', start: f.t })
       return
     }
     if (stage.name === 'held') {
-      held.current.push(sample)
+      held.current.push(...sample)
       if (f.t - stage.start >= HELD_MS) {
         const next = calibrate(natural.current, held.current)
         if (next) setCfg(next)
@@ -63,6 +63,11 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
       }
       return
     }
+    if (stage.name === 'reading' && f.t - stage.start >= READ_MS) {
+      setFalseSelects(readCount.current)
+      setStage({ name: 'idle' })
+    }
+    if (f.score === null) return
 
     const r = stepBlink(machine.current, f.score, f.t, cfg)
     machine.current = r.state
@@ -73,10 +78,6 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
       setGlow(true)
       setTimeout(() => setGlow(false), 250)
       if (stage.name === 'reading') readCount.current += 1
-    }
-    if (stage.name === 'reading' && f.t - stage.start >= READ_MS) {
-      setFalseSelects(readCount.current)
-      setStage({ name: 'idle' })
     }
   })
 

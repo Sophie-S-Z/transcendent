@@ -44,13 +44,21 @@ export function useFaceBlink(onFrame: (f: FaceFrame) => void, enabled = true) {
     let stream: MediaStream | undefined
     let landmarker: FaceLandmarker | undefined
     let raf = 0
+    // Stops the camera and frees the model. It is safe to call more than one time.
+    const release = () => {
+      cancelAnimationFrame(raf)
+      stream?.getTracks().forEach((track) => track.stop())
+      landmarker?.close()
+      landmarker = undefined
+    }
 
     ;(async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        if (stopped) return release()
         landmarker = await createLandmarker()
         const video = videoRef.current
-        if (stopped || !video) return
+        if (stopped || !video) return release()
         video.srcObject = stream
         await video.play()
         setStatus('ready')
@@ -67,6 +75,7 @@ export function useFaceBlink(onFrame: (f: FaceFrame) => void, enabled = true) {
         }
         loop()
       } catch (e) {
+        release()
         if (stopped) return
         setError(e instanceof Error ? e.message : String(e))
         setStatus('error')
@@ -75,9 +84,7 @@ export function useFaceBlink(onFrame: (f: FaceFrame) => void, enabled = true) {
 
     return () => {
       stopped = true
-      cancelAnimationFrame(raf)
-      stream?.getTracks().forEach((track) => track.stop())
-      landmarker?.close()
+      release()
     }
   }, [enabled])
 

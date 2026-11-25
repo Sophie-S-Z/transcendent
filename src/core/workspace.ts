@@ -206,7 +206,9 @@ export function applyAction(ws: Workspace, action: Pick<Action, 'id' | 'text'>):
     case 'toggle-todo':
       return { ...ws, todos: ws.todos.map((t) => (t.id === a.target ? { ...t, done: !t.done } : t)) }
     case 'new-note': {
-      const id = `note-${ws.notes.length + 1}`
+      let n = ws.notes.length + 1
+      while (ws.notes.some((x) => x.id === `note-${n}`)) n++
+      const id = `note-${n}`
       const title = words(text).slice(0, 4).join(' ')
       return { ...ws, notes: [...ws.notes, { id, title, body: text }], view: view({ open: id }) }
     }

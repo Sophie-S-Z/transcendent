@@ -70,6 +70,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   const [holdout, setHoldout] = useState('')
   const [counts, setCounts] = useState<Counts>({})
 
+  // The scan timer and async callbacks read the current screen from this ref.
+  const scan = useRef({ index, count: 0, layer })
   // Tier 1 loads while the user works. Until it is ready, Tier 0 ranks (T16).
   const [engine, setEngine] = useState<Engine | null>(null)
   const [modelStatus, setModelStatus] = useState('')
@@ -89,12 +91,30 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   useEffect(() => {
     if (!engine) return
     let live = true
-    const timeout = new Promise<string[]>((resolve) => setTimeout(() => resolve([]), MODEL_WAIT_MS))
+    let pending = true
+    let timer = 0
+    // After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
+    const timeout = new Promise<null>((resolve) => {
+      timer = window.setTimeout(() => resolve(null), MODEL_WAIT_MS)
+    })
     Promise.race([rankWithModel(engine, ws, tier0), timeout])
       .catch(() => [])
-      .then((ids) => live && setModel({ ws, ids }))
+      .then((ids) => {
+        if (ids === null) engine.interruptGenerate()
+        pending = false
+        clearTimeout(timer)
+        if (!live) return
+        setModel({ ws, ids: ids ?? [] })
+        if (scan.current.layer.kind === 'home') {
+          setIndex(0)
+          setVersion((v) => v + 1)
+        }
+      })
     return () => {
       live = false
+      clearTimeout(timer)
+      if (pending) engine.interruptGenerate()
+      pending = false
     }
   }, [engine, ws, tier0])
   const ranked = engine ? (model?.ws === ws ? merge(model.ids, tier0) : null) : tier0
@@ -161,7 +181,11 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   // The Undo bar stays for 5 seconds after each reversible action (T10).
   useEffect(() => {
     if (!undo) return
-    const id = setTimeout(() => setUndo(null), UNDO_MS)
+    // The Undo item is first on the home screen. When it goes, the highlight stays on the same item.
+    const id = setTimeout(() => {
+      setUndo(null)
+      if (scan.current.layer.kind === 'home') setIndex((i) => Math.max(0, i - 1))
+    }, UNDO_MS)
     return () => clearTimeout(id)
   }, [undo, history])
 
@@ -219,16 +243,17 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
         ]
       }
       case 'confirm':
+        // Cancel is first, so a fast double signal cannot confirm (T9).
         return [
-          { label: `Confirm: ${layer.action.label}`, run: () => run(layer.action, layer.text) },
           { label: 'Cancel', run: cancel },
+          { label: `Confirm: ${layer.action.label}`, run: () => run(layer.action, layer.text) },
         ]
     }
   })()
 
   const onSelect = () => {
     const item = items[index]
-    if (thinking || !item) return
+    if (!item) return
     if (settings.sound) click()
     addToTrial({ signals: 1 })
     setGlow(true)
@@ -240,19 +265,18 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
 
   // The highlight moves in rank order at the speed the user sets (T7).
   // In a keyboard row, one full pass with no select returns to the row list.
-  const scan = useRef({ index, count: items.length, layer })
   useEffect(() => {
     scan.current = { index, count: items.length, layer }
   })
   useEffect(() => {
-    if (paused || thinking) return
+    if (paused) return
     const id = setInterval(() => {
       const { index: i, count, layer: l } = scan.current
       if (i + 1 >= count && l.kind === 'typing' && l.row !== null) go({ ...l, row: null })
       else setIndex((i + 1) % count)
     }, stepMs)
     return () => clearInterval(id)
-  }, [version, paused, thinking, stepMs])
+  }, [version, paused, stepMs])
 
   const startTrial = (task: Task) => {
     setWs(task.start())
@@ -328,7 +352,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
                   <Card
                     label={it.label}
                     large={i === 0 && layer.kind === 'home' && !baseline && !undo}
-                    highlight={!thinking && i === index}
+                    highlight={i === index}
                     progress={progress}
                   />
                 </div>

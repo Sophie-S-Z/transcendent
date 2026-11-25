@@ -10,7 +10,7 @@ Live app: https://sophie-s-z.github.io/transcendent/
 
 1. A built-in workspace (mail, messages, calendar, notes) with sample data lists every valid action for its state (`src/core/workspace.ts`).
 2. A predictor ranks that list. Tier 0 uses rules and action counts (`src/core/predict.ts`). Tier 1 asks a small open model in the browser through WebLLM and falls back to Tier 0 after 1.5 seconds (`src/core/tier1.ts`). The app drops every predicted ID that is not in the list.
-3. The screen shows the top 4 actions and "Something else". "Call for help" is in every scan cycle. A highlight moves through the items, and one signal selects the highlighted item (`src/screens/Loop.tsx`).
+3. The screen shows the top 4 actions and "Something else". "Call for help" is on the home screen and in "Something else", so it is 2 signals away. A highlight moves through the items, and one signal selects the highlighted item (`src/screens/Loop.tsx`).
 4. Send and delete actions need a second select on a confirm screen. Other actions show an Undo bar for 5 seconds.
 5. Free text uses three complete drafts, then next-word suggestions, then a row-column scanning keyboard with the most frequent letters first (`src/text/entry.ts`).
 

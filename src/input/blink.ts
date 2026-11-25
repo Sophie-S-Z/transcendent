@@ -45,9 +45,10 @@ export function stepBlink(
     : { state: s, select: false, progress }
 }
 
-function median(xs: number[]): number {
+/** The value below which the fraction p of the values fall. */
+function percentile(xs: number[], p: number): number {
   const s = [...xs].sort((a, b) => a - b)
-  return s.length ? s[Math.floor(s.length / 2)] : 0
+  return s.length ? s[Math.min(s.length - 1, Math.floor(s.length * p))] : 0
 }
 
 /** Durations in ms of each run of samples at or above the threshold. */
@@ -67,13 +68,15 @@ export function closedRuns(samples: Sample[], threshold: number): number[] {
 /**
  * Sets the threshold and the hold time from two recordings:
  * `natural` is normal viewing with natural blinks, `held` is one held blink.
- * The threshold is the middle point between the open-eye score and the held-blink score.
+ * The open-eye score is the median of the natural recording. The held-blink score is the 90th percentile
+ * of the held recording, because the eyes are open for part of that recording.
+ * The threshold is the middle point between the two scores.
  * The hold time is the longest natural blink plus a margin, inside the allowed range.
  * Returns null when the two recordings do not separate, so the caller can ask the user to try again.
  */
 export function calibrate(natural: Sample[], held: Sample[]): BlinkConfig | null {
-  const open = median(natural.map((s) => s.score))
-  const closed = median(held.map((s) => s.score).filter((x) => x > open))
+  const open = percentile(natural.map((s) => s.score), 0.5)
+  const closed = percentile(held.map((s) => s.score), 0.9)
   if (closed - open < 0.2) return null
   const threshold = (open + closed) / 2
   const longest = Math.max(0, ...closedRuns(natural, threshold))

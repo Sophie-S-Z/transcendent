@@ -59,6 +59,14 @@ describe('calibrate', () => {
     expect(c.holdMs).toBeLessThanOrEqual(1500)
   })
 
+  it('finds a 2-second held blink in a 10-second recording with noise', () => {
+    const noisy = (n: number, base: number) => Array.from({ length: n }, (_, i) => base + 0.05 * Math.sin(i))
+    const realHeld = series([...noisy(240, 0.1), ...noisy(60, 0.85)])
+    const c = calibrate(natural, realHeld)
+    expect(c).not.toBeNull()
+    expect(c!.threshold).toBeGreaterThan(0.3)
+  })
+
   it('returns null when the held blink does not differ from open eyes', () => {
     expect(calibrate(natural, series(frames(40, 0.1)))).toBeNull()
   })
