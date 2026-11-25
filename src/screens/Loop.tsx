@@ -1,6 +1,6 @@
 // The home loop: the one-signal interface (T7 to T13).
 // A highlight moves through a list of items. One select runs the highlighted item.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { countKey, rankActions, type Counts } from '../core/predict'
 import { sampleWorkspace } from '../core/sample'
 import { loadEngine, rankWithModel, type Engine } from '../core/tier1'
@@ -297,8 +297,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   }[layer.kind]
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 p-6">
-      <header className="flex flex-wrap items-center gap-6">
+    <main className="flex min-h-dvh flex-col gap-4 p-6">
+      <header className="glass flex flex-wrap items-center gap-6 px-6 py-3">
         <h1 className="text-2xl font-bold">Transcendent</h1>
         <span className="text-muted">{MODE_LABEL[mode]}</span>
         {modelStatus && !engine && <span className="max-w-md truncate text-muted">{modelStatus}</span>}
@@ -309,8 +309,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
               {trial.signals} <span className="text-xl text-muted">signals</span>
             </p>
           )}
-          {settings.camera && <video ref={videoRef} muted playsInline className="h-20 -scale-x-100 rounded-lg bg-surface" />}
-          <button onClick={onExit} className="min-h-12 rounded-lg border-2 border-muted px-4 text-base text-muted">
+          {settings.camera && <video ref={videoRef} muted playsInline className="h-20 -scale-x-100 rounded-xl bg-surface" />}
+          <button onClick={onExit} className="btn btn-ghost min-h-12 text-base">
             Exit
           </button>
         </div>
@@ -327,28 +327,34 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
       )}
 
       <div className="grid flex-1 gap-8 lg:grid-cols-[1fr_2fr]">
-        <section className="max-h-[70vh] overflow-auto">
+        <section className="glass max-h-[70dvh] overflow-auto p-6">
           <WorkspaceView ws={ws} />
         </section>
 
         <section
-          className={`flex flex-col gap-4 rounded-2xl px-2 transition-shadow duration-200 ${glow ? 'shadow-[0_0_48px_var(--color-accent)]' : ''}`}
+          className={`glass flex flex-col gap-4 p-6 ${glow ? 'pulse' : ''}`}
         >
           <h2 className="text-xl text-muted">{thinking ? 'Thinking' : title}</h2>
           {layer.kind === 'typing' && (
-            <p className="min-h-24 rounded-2xl border-2 border-ink p-4 font-mono text-3xl">{layer.text || ' '}▌</p>
+            <p className="min-h-24 rounded-[20px] border border-line bg-bg/60 p-4 font-mono text-3xl">{layer.text || ' '}▌</p>
           )}
-          {layer.kind === 'confirm' && layer.text && <p className="text-2xl">"{layer.text}"</p>}
+          {layer.kind === 'confirm' && layer.text && <p className="text-2xl">“{layer.text}”</p>}
           {layer.kind === 'typing' && layer.row !== null ? (
             <div className="grid grid-cols-6 gap-4">
               {items.map((it, i) => (
-                <Card key={it.label} label={it.label} highlight={i === index} progress={progress} />
+                <div key={it.label} className="enter" style={stagger(i)}>
+                  <Card label={it.label} highlight={i === index} progress={progress} />
+                </div>
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
               {items.map((it, i) => (
-                <div key={`${version}-${i}`} className={i === 0 && layer.kind === 'home' && !baseline && !undo ? 'col-span-full' : ''}>
+                <div
+                  key={`${version}-${i}`}
+                  className={`enter ${i === 0 && layer.kind === 'home' && !baseline && !undo ? 'col-span-full' : ''}`}
+                  style={stagger(i)}
+                >
                   <Card
                     label={it.label}
                     large={i === 0 && layer.kind === 'home' && !baseline && !undo}
@@ -372,6 +378,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   )
 }
 
+const stagger = (i: number) => ({ '--i': i }) as CSSProperties
 const MODE_LABEL = { baseline: 'Baseline keyboard', tier0: 'Tier 0 rules', tier1: 'Tier 1 model' }
 
 /** The observer panel. The observer uses the mouse. These clicks are not signals. */
@@ -388,10 +395,10 @@ function Observer({
   onStart: (t: Task) => void
   onEnd: (completed: boolean) => void
 }) {
-  const button = 'min-h-12 rounded-lg border-2 border-muted px-4 text-base'
+  const button = 'btn btn-ghost min-h-12 px-4 text-base'
   if (trial && !trial.end)
     return (
-      <section className="flex flex-wrap items-center gap-4 rounded-2xl bg-surface px-4 py-2">
+      <section className="glass flex flex-wrap items-center gap-4 px-6 py-3">
         <p className="text-xl">Task: {trial.task.instruction}</p>
         <button className={button} onClick={() => onEnd(true)}>
           Mark done
@@ -402,7 +409,7 @@ function Observer({
       </section>
     )
   return (
-    <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface p-4">
+    <section className="glass flex flex-wrap items-center gap-2 p-4">
       {trial?.end && (
         <p className="w-full text-xl">
           {trial.task.title}: {trial.end.completed ? 'done' : 'not done'} in {trial.signals} signals and{' '}
@@ -418,7 +425,7 @@ function Observer({
         value={holdout}
         onChange={(e) => setHoldout(e.target.value)}
         placeholder="Hold-out task"
-        className="min-h-12 flex-1 rounded-lg bg-bg px-4 text-base"
+        className="field flex-1 text-base"
       />
       <button
         className={button}

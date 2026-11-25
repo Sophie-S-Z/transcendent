@@ -8,9 +8,9 @@ export function Ring({ progress, size = 160, glow = false }: { progress: number;
       height={size}
       viewBox={`0 0 ${size} ${size}`}
       aria-hidden
-      className={`transition-[filter] duration-200 ${glow ? 'drop-shadow-[0_0_24px_var(--color-accent)]' : ''}`}
+      className={`transition-[filter] duration-200 ${glow ? 'drop-shadow-[0_0_16px_var(--color-accent)]' : ''}`}
     >
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-surface)" strokeWidth={12} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={12} />
       <circle
         cx={size / 2}
         cy={size / 2}

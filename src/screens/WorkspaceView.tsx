@@ -12,7 +12,7 @@ function when(start: string, end: string) {
   return `${new Date(start).toLocaleString('en-US', DATE)} to ${new Date(end).toLocaleTimeString('en-US', TIME)}`
 }
 
-const row = 'rounded-lg bg-surface px-4 py-2'
+const row = 'rounded-xl bg-surface px-4 py-2'
 
 function MailView({ ws }: { ws: Workspace }) {
   const mail = ws.mails.find((m) => m.id === ws.view.open)
@@ -80,7 +80,7 @@ function MessagesView({ ws }: { ws: Workspace }) {
         {thread.messages.map((m, i) => (
           <li
             key={i}
-            className={`max-w-[80%] rounded-lg px-4 py-2 ${m.from === 'me' ? 'self-end border-2 border-ink' : 'self-start bg-surface'}`}
+            className={`max-w-[80%] rounded-lg px-4 py-2 ${m.from === 'me' ? 'self-end border border-line bg-ink/15' : 'self-start bg-surface'}`}
           >
             {m.text}
           </li>
@@ -115,7 +115,7 @@ function NotesView({ ws }: { ws: Workspace }) {
     )
   return (
     <div className="flex flex-col gap-4">
-      {ws.view.query && <h2 className="text-lg font-bold">Notes with "{ws.view.query}"</h2>}
+      {ws.view.query && <h2 className="text-lg font-bold">Notes with “{ws.view.query}”</h2>}
       <ul className="flex flex-col gap-2">
         {matchingNotes(ws).map((n) => (
           <li key={n.id} className={row}>
@@ -141,7 +141,7 @@ export function WorkspaceView({ ws }: { ws: Workspace }) {
   const Body = VIEWS[ws.view.app]
   return (
     <section aria-label={LABEL[ws.view.app]} className="flex flex-col gap-4 text-base text-ink">
-      <nav className="flex gap-6 border-b-2 border-surface pb-2 text-lg">
+      <nav className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line pb-3 text-lg">
         {APPS.map((a) => (
           <span key={a} className={a === ws.view.app ? 'text-ink underline underline-offset-8' : 'text-muted'}>
             {LABEL[a]}

@@ -1,5 +1,5 @@
 /**
- * One scan item. The highlighted card has an accent border. During a held blink a ring closes around it.
+ * One scan item. The highlighted card turns to chrome. During a held blink a ring closes around it.
  */
 export function Card({
   label,
@@ -14,10 +14,11 @@ export function Card({
 }) {
   return (
     <div
+      data-item
       data-highlight={highlight || undefined}
-      className={`relative flex items-center rounded-2xl bg-surface px-6 transition-transform duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-        large ? 'min-h-36 py-4 text-4xl font-bold' : 'h-full min-h-24 py-2 text-xl'
-      } ${highlight ? 'scale-[1.03] outline-4 outline-accent' : 'outline-2 outline-surface'}`}
+      className={`relative flex h-full items-center rounded-[20px] border px-6 transition-[scale,background-color,color] duration-200 ease-out ${
+        large ? 'min-h-36 py-4 text-4xl font-bold' : 'min-h-24 py-2 text-xl'
+      } ${highlight ? 'chrome scale-[1.02] border-transparent' : 'border-line bg-surface shadow-[var(--glass-edge)]'}`}
     >
       {label}
       {highlight && progress > 0 && (
@@ -26,7 +27,7 @@ export function Card({
             x="4"
             y="4"
             style={{ width: 'calc(100% - 8px)', height: 'calc(100% - 8px)' }}
-            rx="20"
+            rx="24"
             fill="none"
             stroke="var(--color-accent)"
             strokeWidth="8"

@@ -129,19 +129,19 @@ export function BlinkLab({
     <main className="mx-auto flex max-w-5xl flex-col gap-8 p-8">
       <header className="flex items-baseline justify-between">
         <h1 className="text-4xl font-bold">Blink calibration</h1>
-        <span className="font-mono text-muted">{status === 'ready' ? 'Camera on' : status === 'loading' ? 'Loading' : 'Error'}</span>
+        <span className="text-muted">{status === 'ready' ? 'Camera on' : status === 'loading' ? 'Loading' : 'Error'}</span>
       </header>
 
       {status === 'error' && <p className="text-accent">Camera or model error: {error}</p>}
 
       <section className="flex flex-wrap items-center gap-8">
-        <video ref={videoRef} muted playsInline className="w-80 -scale-x-100 rounded-2xl bg-surface" />
+        <video ref={videoRef} muted playsInline className="w-80 -scale-x-100 rounded-[20px] border border-line bg-surface" />
         <div className="flex flex-col items-center gap-2">
           <Ring progress={progress} glow={glow} />
           <span className="font-mono text-4xl">{selects}</span>
           <span className="text-muted">selects</span>
         </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 font-mono">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
           <dt className="text-muted">Score</dt>
           <dd>{frame?.score == null ? 'No face' : frame.score.toFixed(2)}</dd>
           <dt className="text-muted">Frame time</dt>
@@ -153,14 +153,14 @@ export function BlinkLab({
         </dl>
       </section>
 
-      <section className="flex flex-col gap-4 rounded-2xl bg-surface p-8">
+      <section className="glass flex flex-col gap-6 p-8">
         <p className="text-3xl">{PROMPT[stage.name]}</p>
         {busy && <p className="font-mono text-muted">{Math.ceil(remaining / 1000)} s left</p>}
         {gate && (
           <div className="flex flex-col gap-2">
             <p className="text-3xl">
               Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 60 s.{' '}
-              <strong className="text-accent">{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
+              <strong className={gate.falseSelects === 0 ? 'text-ink' : 'text-accent'}>{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
             </p>
             <p className="font-mono text-muted">
               Longest natural blink {gate.longest} ms. Hold time {gate.holdMs} ms. Margin {gate.holdMs - gate.longest} ms.
@@ -187,7 +187,7 @@ export function BlinkLab({
             step={50}
             value={cfg.holdMs}
             onChange={(e) => setCfg({ ...cfg, holdMs: Number(e.target.value) })}
-            className="h-12 flex-1 accent-accent"
+            className="h-12 flex-1"
           />
         </label>
         <label className="flex items-center gap-4">
@@ -199,7 +199,7 @@ export function BlinkLab({
             step={0.01}
             value={cfg.threshold}
             onChange={(e) => setCfg({ ...cfg, threshold: Number(e.target.value) })}
-            className="h-12 flex-1 accent-accent"
+            className="h-12 flex-1"
           />
         </label>
       </section>
@@ -210,9 +210,7 @@ export function BlinkLab({
 }
 
 function buttonClass(primary: boolean) {
-  return `min-h-24 rounded-2xl px-8 text-2xl font-bold disabled:opacity-40 ${
-    primary ? 'bg-accent text-bg' : 'border-2 border-ink text-ink'
-  }`
+  return `btn min-h-24 px-8 text-2xl ${primary ? 'chrome' : 'btn-ghost'}`
 }
 
 function ReadingText() {

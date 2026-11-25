@@ -61,10 +61,10 @@ export function ModelProbe() {
   }
 
   const med = times.length === 5 ? median(times) : undefined
-  const button = 'min-h-24 rounded-xl bg-accent px-8 font-bold text-bg disabled:opacity-50'
+  const button = 'btn chrome min-h-24 px-8'
 
   return (
-    <main className="flex min-h-screen flex-col gap-6 bg-bg p-8 text-ink">
+    <main className="mx-auto flex max-w-4xl flex-col items-start gap-6 p-8">
       <h1 className="text-2xl font-bold">Tier 1 timing probe</h1>
       <p>Model: {MODEL_ID}</p>
       <p>WebGPU: {'gpu' in navigator ? 'yes' : 'no'}</p>
@@ -77,7 +77,7 @@ export function ModelProbe() {
         Time 5 ranking prompts
       </button>
       {times.length > 0 && (
-        <ol className="list-decimal rounded-xl bg-surface p-6 pl-12">
+        <ol className="glass list-decimal self-stretch p-6 pl-16 font-mono">
           {times.map((t, i) => (
             <li key={i}>{Math.round(t)} ms</li>
           ))}
@@ -86,13 +86,13 @@ export function ModelProbe() {
       {med !== undefined && (
         <>
           <p>Median: {Math.round(med)} ms</p>
-          <p className={`text-6xl font-bold ${med <= LIMIT_MS ? 'text-accent' : 'text-ink'}`}>
+          <p className={`text-6xl font-bold ${med <= LIMIT_MS ? 'text-ink' : 'text-accent'}`}>
             {med <= LIMIT_MS ? 'PASS' : 'FAIL'}
           </p>
         </>
       )}
       {labels.length > 0 && (
-        <section className="rounded-xl bg-surface p-6">
+        <section className="glass self-stretch p-6">
           <h2 className="font-bold">First ranking (inbox)</h2>
           <ol className="list-decimal pl-8">
             {labels.map((l) => (

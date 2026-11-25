@@ -57,7 +57,7 @@ export default function App() {
       return (
         <>
           <ModelProbe />
-          <button onClick={back} className="m-8 min-h-24 rounded-2xl border-2 border-ink px-8 text-2xl">
+          <button onClick={back} className="btn btn-ghost m-8 min-h-24 px-12 text-2xl">
             Back
           </button>
         </>

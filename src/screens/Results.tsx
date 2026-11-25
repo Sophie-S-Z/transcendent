@@ -36,20 +36,20 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
   }
 
   return (
-    <main className="min-h-screen bg-bg p-8 text-base text-ink">
+    <main className="mx-auto min-h-dvh max-w-7xl p-8 text-base">
       <header className="mb-8 flex flex-wrap items-center gap-4">
         <h1 className="mr-auto text-4xl font-bold">Results</h1>
         <button
           type="button"
           onClick={() => exportCsv(records)}
-          className="min-h-24 rounded-2xl bg-accent px-8 text-xl font-bold text-bg"
+          className="btn chrome min-h-24 px-8 text-xl"
         >
           Export CSV
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="min-h-24 rounded-2xl border-4 border-ink px-8 text-xl font-bold text-ink"
+          className="btn btn-ghost min-h-24 px-8 text-xl"
         >
           Close
         </button>
@@ -61,7 +61,7 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
         <>
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             {summaries.map((s) => (
-              <article key={s.mode} className="rounded-2xl bg-surface p-8">
+              <article key={s.mode} className="glass p-8">
                 <h2 className="text-2xl font-bold">{LABELS[s.mode]}</h2>
                 <p className="text-muted">{s.tasks} tasks</p>
                 <p className="mt-4 font-mono text-8xl font-bold">{s.medianSignals}</p>
@@ -90,12 +90,12 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
             ))}
           </section>
 
-          <table className="mb-8 w-full border-collapse text-left">
+          <table className="glass mb-8 w-full border-separate border-spacing-0 overflow-hidden text-left">
             <thead>
-              <tr className="border-b-4 border-ink">
-                <th className="p-2">Task</th>
+              <tr>
+                <th className="border-b border-line px-6 py-3 text-muted">Task</th>
                 {summaries.map((s) => (
-                  <th key={s.mode} className="p-2">
+                  <th key={s.mode} className="border-b border-line px-6 py-3 text-muted">
                     {LABELS[s.mode]}
                   </th>
                 ))}
@@ -103,13 +103,13 @@ export function Results({ records, onClose }: { records: TaskRecord[]; onClose: 
             </thead>
             <tbody>
               {ids.map((id) => (
-                <tr key={String(id)} className="border-b-2 border-surface">
-                  <td className="p-2">
+                <tr key={String(id)} className="even:bg-surface">
+                  <td className="px-6 py-3">
                     {typeof id === 'number' ? `${id}. ` : ''}
                     {title(id)}
                   </td>
                   {summaries.map((s) => (
-                    <td key={s.mode} className="p-2 font-mono">
+                    <td key={s.mode} className="px-6 py-3 font-mono">
                       {cell(id, s.mode)}
                     </td>
                   ))}

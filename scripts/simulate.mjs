@@ -44,7 +44,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
 
-const labels = () => page.$$eval('[data-highlight], .rounded-2xl.bg-surface', (els) => els.map((e) => e.textContent))
+const labels = () => page.$$eval('[data-item]', (els) => els.map((e) => e.textContent))
 
 /** Waits until the card with this label has the highlight, then presses the space bar. */
 async function choose(label) {

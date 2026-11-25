@@ -1,15 +1,32 @@
 @import 'tailwindcss';
-@import '@fontsource/atkinson-hyperlegible/400.css';
-@import '@fontsource/atkinson-hyperlegible/700.css';
+@import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
+@import '@fontsource/atkinson-hyperlegible-mono/400.css';
 
+/* Ice and navy with one cherry accent. The accent marks only the held-blink ring, the select pulse, and results. */
 @theme {
-  --color-bg: #0b0b0c;
-  --color-surface: #18181b;
-  --color-ink: #f5f2ea;
-  --color-muted: #b8b3a8;
-  --color-accent: #ffb454;
-  --font-sans: 'Atkinson Hyperlegible', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --color-bg: oklch(0.15 0.03 262);
+  --color-surface: oklch(1 0 0 / 0.07);
+  --color-line: oklch(1 0 0 / 0.14);
+  --color-ink: oklch(0.97 0.01 235);
+  --color-muted: oklch(0.8 0.03 245);
+  --color-accent: oklch(0.68 0.2 18);
+  --font-sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --radius-panel: 28px;
+}
+
+:root {
+  /* Polished chrome: a bright top, a dark horizon line, and a soft bottom. */
+  --chrome: linear-gradient(
+    in oklch 180deg,
+    oklch(0.99 0.004 230),
+    oklch(0.92 0.015 236) 40%,
+    oklch(0.84 0.03 246) 58%,
+    oklch(0.94 0.012 235)
+  );
+  --glass-edge: inset 0 1px 0 oklch(1 0 0 / 0.2), inset 0 -1px 0 oklch(1 0 0 / 0.05);
+  --lift: 0 1px 2px oklch(0.08 0.03 262 / 0.4), 0 16px 40px -16px oklch(0.08 0.04 262 / 0.7);
 }
 
 html {
@@ -17,6 +34,141 @@ html {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  text-wrap: balance;
+}
+
+.underline {
+  text-underline-offset: 0.2em;
+}
+
+/* A frosted panel. The backdrop is static, so the blur does not recompute during a scan. */
+@utility glass {
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--color-line);
+  background: oklch(0.24 0.035 258 / 0.55);
+  box-shadow: var(--glass-edge), var(--lift);
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+
+@utility chrome {
+  background: var(--chrome);
+  color: var(--color-bg);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.9), inset 0 -2px 4px oklch(0.5 0.04 250 / 0.35), var(--lift);
+}
+
+@utility btn {
+  display: inline-flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  padding-inline: 1.5rem;
+  font-weight: 700;
+  text-box: trim-both cap alphabetic;
+  transition:
+    scale 150ms var(--ease-out),
+    background-color 150ms var(--ease-out);
+  &:active:not(:disabled) {
+    scale: 0.97;
+  }
+  &:disabled {
+    opacity: 0.4;
+  }
+}
+
+@utility btn-ghost {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  box-shadow: var(--glass-edge);
+  &:hover:not(:disabled) {
+    background: oklch(1 0 0 / 0.12);
+  }
+}
+
+@utility field {
+  min-height: 3rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-line);
+  background: oklch(0.1 0.03 262 / 0.6);
+  padding-inline: 1rem;
+  box-shadow: inset 0 1px 2px oklch(0 0 0 / 0.4);
+  &::placeholder {
+    color: var(--color-muted);
+  }
+}
+
+/* A switch. The knob stretches 12% while pressed. */
+@utility switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--color-line);
+  background: oklch(0.1 0.03 262 / 0.6);
+  transition: background-color 200ms var(--ease-out);
+  &::before {
+    content: '';
+    position: absolute;
+    inset-block: 3px;
+    left: 3px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--color-muted);
+    transform-origin: left;
+    transition:
+      translate 200ms ease-in-out,
+      scale 150ms var(--ease-out),
+      background-color 200ms var(--ease-out);
+  }
+  &:checked {
+    background: oklch(0.62 0.06 245);
+  }
+  &:checked::before {
+    translate: 1rem 0;
+    background: var(--chrome);
+    transform-origin: right;
+  }
+  &:active::before {
+    scale: 1.12 1;
+  }
+}
+
+/* Each item of a new screen enters 30 ms after the one before it. --i is the item index. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+
+@keyframes select-pulse {
+  from {
+    box-shadow: 0 0 0 0 oklch(0.68 0.2 18 / 0.7);
+  }
+  to {
+    box-shadow: 0 0 0 20px oklch(0.68 0.2 18 / 0);
+  }
+}
+
+@utility enter {
+  animation: enter 220ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 30ms);
+}
+
+@utility pulse {
+  animation: select-pulse 250ms var(--ease-out);
+}
+
+input[type='range'] {
+  accent-color: var(--color-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -25,5 +177,6 @@ html {
   *::after {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
   }
 }
