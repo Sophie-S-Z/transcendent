@@ -126,96 +126,107 @@ export function BlinkLab({
   const busy = stage.name !== 'idle' && stage.name !== 'failed'
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-8 p-8">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-4xl font-bold">Blink calibration</h1>
+    <main className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-10 px-10 py-10">
+      <header className="flex items-baseline justify-between border-b border-line pb-5">
+        <h1 className="text-3xl font-bold">Blink calibration</h1>
         <span className="text-muted">{status === 'ready' ? 'Camera on' : status === 'loading' ? 'Loading' : 'Error'}</span>
       </header>
 
       {status === 'error' && <p className="text-accent">Camera or model error: {error}</p>}
 
-      <section className="flex flex-wrap items-center gap-8">
-        <video ref={videoRef} muted playsInline className="w-80 -scale-x-100 rounded-[20px] border border-line bg-surface" />
-        <div className="flex flex-col items-center gap-2">
-          <Ring progress={progress} glow={glow} />
-          <span className="font-mono text-4xl">{selects}</span>
-          <span className="text-muted">selects</span>
-        </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <dt className="text-muted">Score</dt>
-          <dd>{frame?.score == null ? 'No face' : frame.score.toFixed(2)}</dd>
-          <dt className="text-muted">Frame time</dt>
-          <dd>{frame ? `${frame.detectMs.toFixed(0)} ms` : '-'}</dd>
-          <dt className="text-muted">Threshold</dt>
-          <dd>{cfg.threshold.toFixed(2)}</dd>
-          <dt className="text-muted">Hold</dt>
-          <dd>{cfg.holdMs} ms</dd>
-        </dl>
-      </section>
-
-      <section className="glass flex flex-col gap-6 p-8">
-        <p className="text-3xl">{PROMPT[stage.name]}</p>
-        {busy && <p className="font-mono text-muted">{Math.ceil(remaining / 1000)} s left</p>}
-        {gate && (
-          <div className="flex flex-col gap-2">
-            <p className="text-3xl">
-              Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 60 s.{' '}
-              <strong className={gate.falseSelects === 0 ? 'text-ink' : 'text-accent'}>{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
-            </p>
-            <p className="font-mono text-muted">
-              Longest natural blink {gate.longest} ms. Hold time {gate.holdMs} ms. Margin {gate.holdMs - gate.longest} ms.
-            </p>
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+        <section className="flex flex-col gap-6">
+          <video ref={videoRef} muted playsInline className="w-full max-w-[360px] -scale-x-100 rounded-[16px] border border-line bg-surface" />
+          <div className="flex items-center gap-8">
+            <div className="flex flex-col items-center gap-1">
+              <Ring progress={progress} size={112} glow={glow} />
+              <span className="font-mono text-2xl">{selects}</span>
+              <span className="text-sm text-muted">selects</span>
+            </div>
+            <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-6 gap-y-2">
+              <dt className="text-muted">Score</dt>
+              <dd className="font-mono">{frame?.score == null ? 'No face' : frame.score.toFixed(2)}</dd>
+              <dt className="text-muted">Frame time</dt>
+              <dd className="font-mono">{frame ? `${frame.detectMs.toFixed(0)} ms` : '-'}</dd>
+              <dt className="text-muted">Threshold</dt>
+              <dd className="font-mono">{cfg.threshold.toFixed(2)}</dd>
+              <dt className="text-muted">Hold</dt>
+              <dd className="font-mono">{cfg.holdMs} ms</dd>
+            </dl>
           </div>
-        )}
-        <div className="flex flex-wrap gap-4">
-          <button disabled={busy || status !== 'ready'} onClick={startCalibration} className={buttonClass(true)}>
-            Calibrate (about 16 s)
-          </button>
-          <button disabled={busy || status !== 'ready'} onClick={startReading} className={buttonClass(false)}>
-            Start 1-minute reading test
-          </button>
-          <button disabled={busy} onClick={() => onDone(cfg)} className={buttonClass(false)}>
-            Save and close
-          </button>
-        </div>
-        <label className="flex items-center gap-4">
-          <span className="w-56">Hold time</span>
-          <input
-            type="range"
-            min={HOLD_MIN_MS}
-            max={HOLD_MAX_MS}
-            step={50}
-            value={cfg.holdMs}
-            onChange={(e) => setCfg({ ...cfg, holdMs: Number(e.target.value) })}
-            className="h-12 flex-1"
-          />
-        </label>
-        <label className="flex items-center gap-4">
-          <span className="w-56">Threshold</span>
-          <input
-            type="range"
-            min={0.1}
-            max={0.9}
-            step={0.01}
-            value={cfg.threshold}
-            onChange={(e) => setCfg({ ...cfg, threshold: Number(e.target.value) })}
-            className="h-12 flex-1"
-          />
-        </label>
-      </section>
+          <div className="flex flex-col gap-3 border-t border-line pt-5">
+            <label className="flex items-center gap-4">
+              <span className="w-24">Hold time</span>
+              <input
+                type="range"
+                min={HOLD_MIN_MS}
+                max={HOLD_MAX_MS}
+                step={50}
+                value={cfg.holdMs}
+                onChange={(e) => setCfg({ ...cfg, holdMs: Number(e.target.value) })}
+                className="h-8 flex-1"
+              />
+            </label>
+            <label className="flex items-center gap-4">
+              <span className="w-24">Threshold</span>
+              <input
+                type="range"
+                min={0.1}
+                max={0.9}
+                step={0.01}
+                value={cfg.threshold}
+                onChange={(e) => setCfg({ ...cfg, threshold: Number(e.target.value) })}
+                className="h-8 flex-1"
+              />
+            </label>
+          </div>
+        </section>
 
-      {stage.name === 'reading' && <ReadingText />}
+        <section className="flex min-w-0 flex-col gap-6">
+          <p className="text-3xl leading-snug">{PROMPT[stage.name]}</p>
+          {busy && <p className="font-mono text-muted">{Math.ceil(remaining / 1000)} s left</p>}
+          {gate && (
+            <div className="enter flex flex-col gap-2 border-t border-line pt-5">
+              <p className="text-2xl">
+                Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 60 s.{' '}
+                <strong className={gate.falseSelects === 0 ? 'text-ink' : 'text-accent'}>{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
+              </p>
+              <p className="text-muted">
+                Longest natural blink <span className="font-mono">{Math.round(gate.longest)}</span> ms. Hold time{' '}
+                <span className="font-mono">{gate.holdMs}</span> ms. Margin{' '}
+                <span className="font-mono">{Math.round(gate.holdMs - gate.longest)}</span> ms.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-wrap gap-4">
+            <button disabled={busy || status !== 'ready'} onClick={startCalibration} className={buttonClass(true)}>
+              Calibrate (about 16 s)
+            </button>
+            <button disabled={busy || status !== 'ready'} onClick={startReading} className={buttonClass(false)}>
+              Start 1-minute reading test
+            </button>
+            <button disabled={busy} onClick={() => onDone(cfg)} className={buttonClass(false)}>
+              Save and close
+            </button>
+          </div>
+          {stage.name === 'reading' && (
+            <div className="enter max-h-[42dvh] overflow-auto border-t border-line pt-6 pr-4">
+              <ReadingText />
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   )
 }
 
 function buttonClass(primary: boolean) {
-  return `btn min-h-24 px-8 text-2xl ${primary ? 'chrome' : 'btn-ghost'}`
+  return `btn px-6 text-lg ${primary ? 'chrome' : 'btn-ghost'}`
 }
 
 function ReadingText() {
   return (
-    <article className="flex max-w-3xl flex-col gap-6 text-2xl leading-relaxed">
+    <article className="flex max-w-2xl flex-col gap-5 text-xl leading-relaxed">
       <p>
         A scanning keyboard shows the letters in groups. A highlight moves from one group to the next. When the
         highlight reaches the correct group, the user gives a signal. Then the highlight moves through the letters of

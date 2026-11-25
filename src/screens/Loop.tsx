@@ -297,20 +297,20 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   }[layer.kind]
 
   return (
-    <main className="flex min-h-dvh flex-col gap-4 p-6">
-      <header className="glass flex flex-wrap items-center gap-6 px-6 py-3">
-        <h1 className="text-2xl font-bold">Transcendent</h1>
+    <main className="flex min-h-dvh flex-col gap-8 px-8 py-6 xl:px-12">
+      <header className="flex flex-wrap items-center gap-6 border-b border-line pb-5">
+        <h1 className="text-xl font-semibold tracking-tight">Transcendent</h1>
         <span className="text-muted">{MODE_LABEL[mode]}</span>
         {modelStatus && !engine && <span className="max-w-md truncate text-muted">{modelStatus}</span>}
         {status === 'error' && <span>Camera error: {error}. Use any key.</span>}
         <div className="ml-auto flex items-center gap-6">
           {trial && (
-            <p className="font-mono text-6xl" aria-live="polite">
-              {trial.signals} <span className="text-xl text-muted">signals</span>
+            <p className="font-mono text-4xl" aria-live="polite">
+              {trial.signals} <span className="font-sans text-base text-muted">signals</span>
             </p>
           )}
-          {settings.camera && <video ref={videoRef} muted playsInline className="h-20 -scale-x-100 rounded-xl bg-surface" />}
-          <button onClick={onExit} className="btn btn-ghost min-h-12 text-base">
+          {settings.camera && <video ref={videoRef} muted playsInline className="h-16 -scale-x-100 rounded-[10px] bg-surface" />}
+          <button onClick={onExit} className="btn btn-ghost min-h-11">
             Exit
           </button>
         </div>
@@ -326,17 +326,15 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
         />
       )}
 
-      <div className="grid flex-1 gap-8 lg:grid-cols-[1fr_2fr]">
-        <section className="glass max-h-[70dvh] overflow-auto p-6">
+      <div className="grid flex-1 gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <section className="max-h-[75dvh] overflow-auto lg:border-r lg:border-line lg:pr-12">
           <WorkspaceView ws={ws} />
         </section>
 
-        <section
-          className={`glass flex flex-col gap-4 p-6 ${glow ? 'pulse' : ''}`}
-        >
-          <h2 className="text-xl text-muted">{thinking ? 'Thinking' : title}</h2>
+        <section className="flex flex-col gap-5">
+          <h2 className="text-lg text-muted">{thinking ? 'Thinking' : title}</h2>
           {layer.kind === 'typing' && (
-            <p className="min-h-24 rounded-[20px] border border-line bg-bg/60 p-4 font-mono text-3xl">{layer.text || ' '}▌</p>
+            <p className="min-h-20 rounded-[14px] border border-line bg-bg/60 px-5 py-4 font-mono text-2xl">{layer.text || ' '}▌</p>
           )}
           {layer.kind === 'confirm' && layer.text && <p className="text-2xl">“{layer.text}”</p>}
           {layer.kind === 'typing' && layer.row !== null ? (
@@ -368,9 +366,11 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
         </section>
       </div>
 
+      {glow && <div aria-hidden className="pulse pointer-events-none fixed inset-0" />}
+
       {paused && (
         <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-bg/95 p-8 text-center">
-          <p className="text-5xl font-bold">Paused</p>
+          <p className="text-5xl font-semibold tracking-tight">Paused</p>
           <p className="text-2xl">The camera does not see your face. Press any key, or return to the camera and hold a blink.</p>
         </div>
       )}
@@ -395,11 +395,11 @@ function Observer({
   onStart: (t: Task) => void
   onEnd: (completed: boolean) => void
 }) {
-  const button = 'btn btn-ghost min-h-12 px-4 text-base'
+  const button = 'btn btn-ghost min-h-11 px-4'
   if (trial && !trial.end)
     return (
-      <section className="glass flex flex-wrap items-center gap-4 px-6 py-3">
-        <p className="text-xl">Task: {trial.task.instruction}</p>
+      <section className="flex flex-wrap items-center gap-4 border-b border-line pb-5">
+        <p className="mr-auto text-xl">Task: {trial.task.instruction}</p>
         <button className={button} onClick={() => onEnd(true)}>
           Mark done
         </button>
@@ -409,9 +409,9 @@ function Observer({
       </section>
     )
   return (
-    <section className="glass flex flex-wrap items-center gap-2 p-4">
+    <section className="flex flex-wrap items-center gap-2 border-b border-line pb-5">
       {trial?.end && (
-        <p className="w-full text-xl">
+        <p className="w-full pb-2 text-lg">
           {trial.task.title}: {trial.end.completed ? 'done' : 'not done'} in {trial.signals} signals and{' '}
           {(trial.end.ms / 1000).toFixed(1)} s
         </p>
@@ -425,7 +425,7 @@ function Observer({
         value={holdout}
         onChange={(e) => setHoldout(e.target.value)}
         placeholder="Hold-out task"
-        className="field flex-1 text-base"
+        className="field min-w-48 flex-1"
       />
       <button
         className={button}

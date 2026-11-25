@@ -61,40 +61,52 @@ export function ModelProbe() {
   }
 
   const med = times.length === 5 ? median(times) : undefined
-  const button = 'btn chrome min-h-24 px-8'
+  const button = 'btn chrome px-6 text-lg'
 
   return (
-    <main className="mx-auto flex max-w-4xl flex-col items-start gap-6 p-8">
-      <h1 className="text-2xl font-bold">Tier 1 timing probe</h1>
-      <p>Model: {MODEL_ID}</p>
-      <p>WebGPU: {'gpu' in navigator ? 'yes' : 'no'}</p>
-      <button className={button} disabled={busy || !!engine} onClick={load}>
-        Load model
-      </button>
-      {progress && <p className="text-muted">{progress}</p>}
-      {loadMs !== undefined && <p>Load time: {Math.round(loadMs)} ms</p>}
-      <button className={button} disabled={busy || !engine} onClick={time}>
-        Time 5 ranking prompts
-      </button>
-      {times.length > 0 && (
-        <ol className="glass list-decimal self-stretch p-6 pl-16 font-mono">
-          {times.map((t, i) => (
-            <li key={i}>{Math.round(t)} ms</li>
-          ))}
-        </ol>
-      )}
-      {med !== undefined && (
-        <>
-          <p>Median: {Math.round(med)} ms</p>
-          <p className={`text-6xl font-bold ${med <= LIMIT_MS ? 'text-ink' : 'text-accent'}`}>
-            {med <= LIMIT_MS ? 'PASS' : 'FAIL'}
+    <main className="mx-auto flex max-w-3xl flex-col gap-10 px-10 py-10">
+      <header className="flex flex-col gap-2 border-b border-line pb-5">
+        <h1 className="text-3xl font-bold">Tier 1 timing probe</h1>
+        <p className="text-muted">Model: {MODEL_ID}</p>
+        <p className="text-muted">WebGPU: {'gpu' in navigator ? 'yes' : 'no'}</p>
+      </header>
+      <section className="flex flex-col items-start gap-4">
+        <button className={button} disabled={busy || !!engine} onClick={load}>
+          Load model
+        </button>
+        {progress && <p className="text-muted">{progress}</p>}
+        {loadMs !== undefined && (
+          <p>
+            Load time: <span className="font-mono">{Math.round(loadMs)}</span> ms
           </p>
-        </>
-      )}
+        )}
+      </section>
+      <section className="flex flex-col items-start gap-4">
+        <button className={button} disabled={busy || !engine} onClick={time}>
+          Time 5 ranking prompts
+        </button>
+        {times.length > 0 && (
+          <ol className="flex list-decimal flex-col gap-1 pl-6 font-mono">
+            {times.map((t, i) => (
+              <li key={i}>{Math.round(t)} ms</li>
+            ))}
+          </ol>
+        )}
+        {med !== undefined && (
+          <div className="flex items-baseline gap-6 border-t border-line pt-4 self-stretch">
+            <p>
+              Median: <span className="font-mono">{Math.round(med)}</span> ms
+            </p>
+            <p className={`text-4xl font-bold ${med <= LIMIT_MS ? 'text-ink' : 'text-accent'}`}>
+              {med <= LIMIT_MS ? 'PASS' : 'FAIL'}
+            </p>
+          </div>
+        )}
+      </section>
       {labels.length > 0 && (
-        <section className="glass self-stretch p-6">
+        <section className="flex flex-col gap-3 border-t border-line pt-5">
           <h2 className="font-bold">First ranking (inbox)</h2>
-          <ol className="list-decimal pl-8">
+          <ol className="flex list-decimal flex-col gap-1 pl-6">
             {labels.map((l) => (
               <li key={l}>{l}</li>
             ))}

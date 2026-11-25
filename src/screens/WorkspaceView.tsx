@@ -12,7 +12,7 @@ function when(start: string, end: string) {
   return `${new Date(start).toLocaleString('en-US', DATE)} to ${new Date(end).toLocaleTimeString('en-US', TIME)}`
 }
 
-const row = 'rounded-xl bg-surface px-4 py-2'
+const row = 'border-b border-line py-3'
 
 function MailView({ ws }: { ws: Workspace }) {
   const mail = ws.mails.find((m) => m.id === ws.view.open)
@@ -33,7 +33,7 @@ function MailView({ ws }: { ws: Workspace }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted">From {mail.from}</p>
-      <h2 className="text-lg font-bold">{mail.subject}</h2>
+      <h2 className="text-xl font-semibold">{mail.subject}</h2>
       <p className={row}>{mail.pages[ws.view.page]}</p>
       <p className="text-muted">
         Page {ws.view.page + 1} of {mail.pages.length}
@@ -75,12 +75,12 @@ function MessagesView({ ws }: { ws: Workspace }) {
     )
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-bold">{thread.contact}</h2>
+      <h2 className="text-xl font-semibold">{thread.contact}</h2>
       <ul className="flex flex-col gap-2">
         {thread.messages.map((m, i) => (
           <li
             key={i}
-            className={`max-w-[80%] rounded-lg px-4 py-2 ${m.from === 'me' ? 'self-end border border-line bg-ink/15' : 'self-start bg-surface'}`}
+            className={`max-w-[80%] rounded-[14px] px-4 py-2 ${m.from === 'me' ? 'self-end border border-line bg-ink/15' : 'self-start bg-surface'}`}
           >
             {m.text}
           </li>
@@ -109,13 +109,13 @@ function NotesView({ ws }: { ws: Workspace }) {
   if (note)
     return (
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">{note.title}</h2>
+        <h2 className="text-xl font-semibold">{note.title}</h2>
         <p className={`${row} whitespace-pre-wrap`}>{note.body}</p>
       </div>
     )
   return (
     <div className="flex flex-col gap-4">
-      {ws.view.query && <h2 className="text-lg font-bold">Notes with “{ws.view.query}”</h2>}
+      {ws.view.query && <h2 className="text-xl font-semibold">Notes with “{ws.view.query}”</h2>}
       <ul className="flex flex-col gap-2">
         {matchingNotes(ws).map((n) => (
           <li key={n.id} className={row}>
@@ -123,7 +123,7 @@ function NotesView({ ws }: { ws: Workspace }) {
           </li>
         ))}
       </ul>
-      <h2 className="text-lg font-bold">To-do</h2>
+      <h2 className="text-xl font-semibold">To-do</h2>
       <ul className="flex flex-col gap-2">
         {ws.todos.map((t) => (
           <li key={t.id} className={`${row} ${t.done ? 'text-muted line-through' : ''}`}>
@@ -140,7 +140,7 @@ const VIEWS = { mail: MailView, messages: MessagesView, calendar: CalendarView, 
 export function WorkspaceView({ ws }: { ws: Workspace }) {
   const Body = VIEWS[ws.view.app]
   return (
-    <section aria-label={LABEL[ws.view.app]} className="flex flex-col gap-4 text-base text-ink">
+    <section aria-label={LABEL[ws.view.app]} className="flex flex-col gap-6 text-lg text-ink">
       <nav className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line pb-3 text-lg">
         {APPS.map((a) => (
           <span key={a} className={a === ws.view.app ? 'text-ink underline underline-offset-8' : 'text-muted'}>
@@ -148,7 +148,9 @@ export function WorkspaceView({ ws }: { ws: Workspace }) {
           </span>
         ))}
       </nav>
-      <Body ws={ws} />
+      <div key={JSON.stringify(ws.view)} className="enter">
+        <Body ws={ws} />
+      </div>
     </section>
   )
 }

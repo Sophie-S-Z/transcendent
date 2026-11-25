@@ -1,6 +1,6 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/atkinson-hyperlegible-next/wght.css';
-@import '@fontsource/atkinson-hyperlegible-mono/400.css';
+@import '@fontsource-variable/familjen-grotesk/wght.css';
+@import '@fontsource/ibm-plex-mono/400.css';
 
 /* Ice and navy with one cherry accent. The accent marks only the held-blink ring, the select pulse, and results. */
 @theme {
@@ -10,10 +10,10 @@
   --color-ink: oklch(0.97 0.01 235);
   --color-muted: oklch(0.8 0.03 245);
   --color-accent: oklch(0.68 0.2 18);
-  --font-sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
-  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --font-sans: 'Familjen Grotesk Variable', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --radius-panel: 28px;
+  --radius-item: 14px;
 }
 
 :root {
@@ -29,11 +29,23 @@
   --lift: 0 1px 2px oklch(0.08 0.03 262 / 0.4), 0 16px 40px -16px oklch(0.08 0.04 262 / 0.7);
 }
 
+/* A fine dot grid over the backdrop, so the page reads as a material. It fades out toward the edges. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(oklch(1 0 0 / 0.09) 1px, transparent 1.5px) 0 0 / 22px 22px;
+  mask: radial-gradient(ellipse at 50% 40%, black, transparent 75%);
+}
+
 html {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 24px;
+  font-size: 16px;
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
@@ -47,15 +59,6 @@ h2 {
   text-underline-offset: 0.2em;
 }
 
-/* A frosted panel. The backdrop is static, so the blur does not recompute during a scan. */
-@utility glass {
-  border-radius: var(--radius-panel);
-  border: 1px solid var(--color-line);
-  background: oklch(0.24 0.035 258 / 0.55);
-  box-shadow: var(--glass-edge), var(--lift);
-  backdrop-filter: blur(24px) saturate(1.4);
-}
-
 @utility chrome {
   background: var(--chrome);
   color: var(--color-bg);
@@ -64,18 +67,30 @@ h2 {
 
 @utility btn {
   display: inline-flex;
-  min-height: 4rem;
+  min-height: 3.25rem;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
+  border-radius: 12px;
   padding-inline: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   text-box: trim-both cap alphabetic;
   transition:
     scale 150ms var(--ease-out),
+    translate 200ms var(--ease-out),
+    filter 200ms var(--ease-out),
     background-color 150ms var(--ease-out);
+  &:hover:not(:disabled) {
+    translate: 0 -1px;
+    filter: brightness(1.06);
+  }
   &:active:not(:disabled) {
+    translate: 0 0;
     scale: 0.97;
+    filter: brightness(0.96);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
   }
   &:disabled {
     opacity: 0.4;
@@ -93,7 +108,7 @@ h2 {
 
 @utility field {
   min-height: 3rem;
-  border-radius: 0.75rem;
+  border-radius: 10px;
   border: 1px solid var(--color-line);
   background: oklch(0.1 0.03 262 / 0.6);
   padding-inline: 1rem;
@@ -149,22 +164,23 @@ h2 {
   }
 }
 
+/* A select flashes the screen edge in the accent, then fades. */
 @keyframes select-pulse {
   from {
-    box-shadow: 0 0 0 0 oklch(0.68 0.2 18 / 0.7);
+    box-shadow: inset 0 0 0 6px var(--color-accent);
   }
   to {
-    box-shadow: 0 0 0 20px oklch(0.68 0.2 18 / 0);
+    box-shadow: inset 0 0 0 0 oklch(0.68 0.2 18 / 0);
   }
 }
 
 @utility enter {
-  animation: enter 220ms var(--ease-out) both;
+  animation: enter 220ms var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 30ms);
 }
 
 @utility pulse {
-  animation: select-pulse 250ms var(--ease-out);
+  animation: select-pulse 250ms var(--ease-out) both;
 }
 
 input[type='range'] {
