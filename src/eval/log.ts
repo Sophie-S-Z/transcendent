@@ -59,10 +59,10 @@ export function median(xs: number[]): number {
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
 
-/** Gives one summary for each mode in the records. It uses only completed records. */
+/** Gives one summary for each mode. It uses only completed records of the 10 tasks, so help tests, hold-out tasks, and Gate A runs do not change the medians. */
 export function summarize(records: TaskRecord[]): Summary[] {
   const byMode = new Map<Mode, TaskRecord[]>()
-  for (const r of records) if (r.completed) byMode.set(r.mode, [...(byMode.get(r.mode) ?? []), r])
+  for (const r of records) if (r.completed && typeof r.task === 'number') byMode.set(r.mode, [...(byMode.get(r.mode) ?? []), r])
   return [...byMode].map(([mode, rs]) => {
     const signals = rs.map((r) => r.signals)
     const ms = rs.map((r) => r.ms)
@@ -86,6 +86,12 @@ export function summarize(records: TaskRecord[]): Summary[] {
 export function savingPct(baseline: number, other: number): number {
   return baseline ? Math.round(((baseline - other) / baseline) * 100) : 0
 }
+
+/** One ID for each page load. All records of one visit share it. */
+export const SESSION = Date.now().toString(36)
+
+/** The tester name for the log. An empty name gives "unnamed", so every run is still logged. */
+export const testerName = (name: string) => name.trim() || 'unnamed'
 
 const KEY = 'transcendent.log'
 

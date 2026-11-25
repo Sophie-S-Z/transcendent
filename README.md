@@ -14,7 +14,7 @@ Live app: https://sophie-s-z.github.io/transcendent/
 4. Send and delete actions need a second select on a confirm screen. Other actions show an Undo bar for 5 seconds.
 5. Free text uses three complete drafts, then next-word suggestions, then a row-column scanning keyboard with the most frequent letters first (`src/text/entry.ts`).
 
-A held blink comes from the MediaPipe Face Landmarker eye-blink scores. A calibration of about 15 seconds sets the threshold and the hold time. A 90-second reading test checks for false selects and raises the hold time if a natural blink came close to it (`src/input/blink.ts`).
+A held blink comes from the MediaPipe Face Landmarker eye-blink scores. A calibration of about 16 seconds (natural blinks, a look down at the keyboard, and one held blink) sets the threshold above the look-down level and sets the hold time. A 1-minute reading test checks for false selects and raises the hold time if a natural blink came close to it (`src/input/blink.ts`).
 
 ## Evaluation
 

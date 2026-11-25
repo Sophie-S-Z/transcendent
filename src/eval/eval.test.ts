@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleWorkspace } from '../core/sample'
 import { applyAction, type Workspace } from '../core/workspace'
-import { median, savingPct, summarize, toCsv, type TaskRecord } from './log'
+import { median, savingPct, summarize, testerName, toCsv, type TaskRecord } from './log'
 import { HELP_TESTS, helpDone, TASKS } from './tasks'
 
 type Step = [id: string, text?: string]
@@ -67,11 +67,18 @@ describe('log', () => {
     expect(median([])).toBe(0)
   })
 
-  it('summarize groups by mode and ignores incomplete records', () => {
+  it('names an empty tester "unnamed", so every run is logged', () => {
+    expect(testerName('  ')).toBe('unnamed')
+    expect(testerName(' Ana ')).toBe('Ana')
+  })
+
+  it('summarize groups by mode and ignores incomplete records and other tests', () => {
     const s = summarize([
       rec({ signals: 20, ms: 3000 }),
       rec({ signals: 10, ms: 1000 }),
       rec({ signals: 99, completed: false }),
+      rec({ signals: 2, task: 'help-1' }),
+      rec({ signals: 0, task: 'gate-a' }),
       rec({ mode: 'tier0', signals: 8, topHits: 3, top5Hits: 4, steps: 4 }),
     ])
     expect(s).toEqual([

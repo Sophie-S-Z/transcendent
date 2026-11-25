@@ -88,16 +88,17 @@ export function heldBlinkDone(natural: Sample[], held: Sample[]): boolean {
 }
 
 /**
- * Sets the threshold and the hold time from two recordings:
- * `natural` is normal viewing with natural blinks, `held` is one held blink.
- * The open-eye score is the median of the natural recording. The held-blink score is the 90th percentile
- * of the held recording, because the eyes are open for part of that recording.
- * The threshold is the middle point between the two scores.
+ * Sets the threshold and the hold time from three recordings:
+ * `natural` is normal viewing with natural blinks, `down` is a look down at the keyboard, `held` is one held blink.
+ * A look down lowers the eyelids and raises the blink score, so the open level is the higher of
+ * the natural median and the 90th percentile of the look-down recording.
+ * The held-blink score is the 90th percentile of the held recording, because the eyes are open for part of it.
+ * The threshold is the middle point between the open level and the held-blink score.
  * The hold time comes from holdFor() and the longest natural blink.
  * Returns null when the two recordings do not separate, so the caller can ask the user to try again.
  */
-export function calibrate(natural: Sample[], held: Sample[]): BlinkConfig | null {
-  const open = openLevel(natural)
+export function calibrate(natural: Sample[], down: Sample[], held: Sample[]): BlinkConfig | null {
+  const open = Math.max(openLevel(natural), percentile(down.map((s) => s.score), 0.9))
   const closed = percentile(held.map((s) => s.score), 0.9)
   if (closed - open < 0.2) return null
   const threshold = (open + closed) / 2

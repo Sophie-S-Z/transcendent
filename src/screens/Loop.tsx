@@ -5,7 +5,7 @@ import { countKey, rankActions, type Counts } from '../core/predict'
 import { sampleWorkspace } from '../core/sample'
 import { loadEngine, rankWithModel, type Engine } from '../core/tier1'
 import { applyAction, helpAction, validActions, type Action, type Workspace } from '../core/workspace'
-import { loadLog, saveLog } from '../eval/log'
+import { loadLog, saveLog, SESSION, testerName } from '../eval/log'
 import { HELP_TESTS, TASKS, type Task } from '../eval/tasks'
 import { useSignal } from '../input/useSignal'
 import type { Settings } from '../settings'
@@ -144,7 +144,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     if (!trial?.end || saved.current === trial) return
     saved.current = trial
     const { task, end, t0: _, ...counters } = trial
-    saveLog([...loadLog(), { session: SESSION, tester: settings.tester, mode, task: task.id, ...counters, ...end }])
+    saveLog([...loadLog(), { session: SESSION, tester: testerName(settings.tester), mode, task: task.id, ...counters, ...end }])
   }, [trial, mode, settings.tester])
 
   const run = (a: Action, text?: string) => {
@@ -372,7 +372,6 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   )
 }
 
-const SESSION = Date.now().toString(36)
 const MODE_LABEL = { baseline: 'Baseline keyboard', tier0: 'Tier 0 rules', tier1: 'Tier 1 model' }
 
 /** The observer panel. The observer uses the mouse. These clicks are not signals. */

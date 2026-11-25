@@ -46,14 +46,25 @@ describe('calibrate', () => {
   const natural = series([...frames(30, 0.05), ...frames(4, 0.8), ...frames(30, 0.05), ...frames(5, 0.8), ...frames(30, 0.05)])
   const held = series([...frames(5, 0.05), ...frames(40, 0.85)])
 
+  const down = series(frames(60, 0.45))
+
   it('sets the threshold between open and closed eyes', () => {
-    const c = calibrate(natural, held)!
+    const c = calibrate(natural, [], held)!
     expect(c.threshold).toBeGreaterThan(0.3)
     expect(c.threshold).toBeLessThan(0.6)
   })
 
+  it('keeps the threshold above the look-down level, so a look down is not a blink', () => {
+    const c = calibrate(natural, down, held)!
+    expect(c.threshold).toBeGreaterThan(0.45 / 0.8) // the release level also stays above the look-down level
+  })
+
+  it('returns null when a look down cannot be told apart from a held blink', () => {
+    expect(calibrate(natural, series(frames(60, 0.75)), held)).toBeNull()
+  })
+
   it('sets the hold time above the longest natural blink, inside the range', () => {
-    const c = calibrate(natural, held)!
+    const c = calibrate(natural, [], held)!
     expect(c.holdMs).toBeGreaterThan(Math.max(...closedRuns(natural, c.threshold)))
     expect(c.holdMs).toBeGreaterThanOrEqual(300)
     expect(c.holdMs).toBeLessThanOrEqual(1500)
@@ -62,7 +73,7 @@ describe('calibrate', () => {
   it('finds a 2-second held blink in a 10-second recording with noise', () => {
     const noisy = (n: number, base: number) => Array.from({ length: n }, (_, i) => base + 0.05 * Math.sin(i))
     const realHeld = series([...noisy(240, 0.1), ...noisy(60, 0.85)])
-    const c = calibrate(natural, realHeld)
+    const c = calibrate(natural, [], realHeld)
     expect(c).not.toBeNull()
     expect(c!.threshold).toBeGreaterThan(0.3)
   })
@@ -80,6 +91,6 @@ describe('calibrate', () => {
   })
 
   it('returns null when the held blink does not differ from open eyes', () => {
-    expect(calibrate(natural, series(frames(40, 0.1)))).toBeNull()
+    expect(calibrate(natural, [], series(frames(40, 0.1)))).toBeNull()
   })
 })

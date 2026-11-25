@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { loadLog } from './eval/log'
+import { loadLog, saveLog, SESSION, testerName } from './eval/log'
 import { loadSettings, saveSettings, type Settings } from './settings'
 import { BlinkLab } from './screens/BlinkLab'
 import { Loop } from './screens/Loop'
@@ -23,6 +23,25 @@ export default function App() {
       return (
         <BlinkLab
           initial={settings.blink}
+          onGate={(falseSelects, ms) =>
+            saveLog([
+              ...loadLog(),
+              {
+                session: SESSION,
+                tester: testerName(settings.tester),
+                mode: settings.mode,
+                task: 'gate-a',
+                signals: falseSelects,
+                ms,
+                errors: falseSelects,
+                topHits: 0,
+                top5Hits: 0,
+                steps: 0,
+                completed: falseSelects === 0,
+                startedAt: new Date(Date.now() - ms).toISOString(),
+              },
+            ])
+          }
           onDone={(blink) => {
             update({ ...settings, blink })
             back()

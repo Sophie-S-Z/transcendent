@@ -14,27 +14,37 @@ import { useFaceBlink, type FaceFrame } from '../input/useFaceBlink'
 import { click } from '../ui/click'
 import { Ring } from '../ui/Ring'
 
-// Calibration: 10 s of natural blinks, then one held blink (the stage stops when it ends, 8 s or less).
-// Gate A: 90 s of reading. The PRD target is 1 false select or fewer in 5 minutes, so the pass in 90 s is 0.
+// Calibration: 8 s of natural blinks, 4 s of a look down, then one held blink (the stage stops when it ends, 8 s or less).
+// Gate A: 60 s of reading. The PRD target is 1 false select or fewer in 5 minutes, so the pass in 60 s is 0.
 // The reading test also measures the longest natural blink and raises the hold time if that blink came close.
-const NATURAL_MS = 10_000
-const HELD_MS = 8_000
-const READ_MS = 90_000
+const STAGE_MS = { natural: 8_000, down: 4_000, held: 8_000, reading: 60_000 }
 
 type Stage =
   | { name: 'idle' | 'failed' }
-  | { name: 'natural' | 'held' | 'reading'; start: number }
+  | { name: 'natural' | 'down' | 'held' | 'reading'; start: number }
 
 const PROMPT: Record<Stage['name'], string> = {
   idle: 'Sit 50 to 70 cm from the camera, with light on your face.',
   natural: 'Look at the screen and blink as you normally do.',
+  down: 'Look down at your keyboard. Keep your eyes open.',
   held: 'Close your eyes now. Keep them closed for 1 second, then open them.',
   reading: 'Read the text below. Do not hold a blink.',
-  failed: 'Calibration did not find a clear held blink. Try again with more light.',
+  failed: 'Calibration could not tell a held blink from open eyes or a look down. Add light, close your eyes fully, and try again.',
 }
 
-/** Calibration (T1) and the Gate A reading test. onDone receives the blink settings to keep. */
-export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (cfg: BlinkConfig) => void }) {
+/**
+ * Calibration (T1) and the Gate A reading test. onGate receives each reading test result.
+ * onDone receives the blink settings to keep.
+ */
+export function BlinkLab({
+  initial,
+  onGate,
+  onDone,
+}: {
+  initial: BlinkConfig
+  onGate: (falseSelects: number, ms: number) => void
+  onDone: (cfg: BlinkConfig) => void
+}) {
   const [cfg, setCfg] = useState(initial)
   const [stage, setStage] = useState<Stage>({ name: 'idle' })
   const [frame, setFrame] = useState<FaceFrame | null>(null)
@@ -45,6 +55,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
 
   const machine = useRef(initialBlink)
   const natural = useRef<Sample[]>([])
+  const down = useRef<Sample[]>([])
   const held = useRef<Sample[]>([])
   const readCount = useRef(0)
   const longest = useRef(0)
@@ -56,22 +67,28 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
 
     if (stage.name === 'natural') {
       natural.current.push(...sample)
-      if (f.t - stage.start >= NATURAL_MS) setStage({ name: 'held', start: f.t })
+      if (f.t - stage.start >= STAGE_MS.natural) setStage({ name: 'down', start: f.t })
+      return
+    }
+    if (stage.name === 'down') {
+      down.current.push(...sample)
+      if (f.t - stage.start >= STAGE_MS.down) setStage({ name: 'held', start: f.t })
       return
     }
     if (stage.name === 'held') {
       held.current.push(...sample)
-      if (heldBlinkDone(natural.current, held.current) || f.t - stage.start >= HELD_MS) {
-        const next = calibrate(natural.current, held.current)
+      if (heldBlinkDone(natural.current, held.current) || f.t - stage.start >= STAGE_MS.held) {
+        const next = calibrate(natural.current, down.current, held.current)
         if (next) setCfg(next)
         setStage({ name: next ? 'idle' : 'failed' })
       }
       return
     }
-    if (stage.name === 'reading' && f.t - stage.start >= READ_MS) {
+    if (stage.name === 'reading' && f.t - stage.start >= STAGE_MS.reading) {
       const holdMs = Math.max(cfg.holdMs, holdFor(longest.current))
       setCfg({ ...cfg, holdMs })
       setGate({ falseSelects: readCount.current, longest: longest.current, holdMs })
+      onGate(readCount.current, STAGE_MS.reading)
       setStage({ name: 'idle' })
     }
     if (f.score === null) return
@@ -94,6 +111,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
 
   const startCalibration = () => {
     natural.current = []
+    down.current = []
     held.current = []
     setStage({ name: 'natural', start: performance.now() })
   }
@@ -104,7 +122,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
     setGate(null)
     setStage({ name: 'reading', start: performance.now() })
   }
-  const remaining = 'start' in stage && frame ? Math.max(0, stageLength(stage.name) - (frame.t - stage.start)) : 0
+  const remaining = 'start' in stage && frame ? Math.max(0, STAGE_MS[stage.name] - (frame.t - stage.start)) : 0
   const busy = stage.name !== 'idle' && stage.name !== 'failed'
 
   return (
@@ -141,7 +159,7 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
         {gate && (
           <div className="flex flex-col gap-2">
             <p className="text-3xl">
-              Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 90 s.{' '}
+              Gate A: {gate.falseSelects} false {gate.falseSelects === 1 ? 'select' : 'selects'} in 60 s.{' '}
               <strong className="text-accent">{gate.falseSelects === 0 ? 'Pass' : 'Fail'}</strong>
             </p>
             <p className="font-mono text-muted">
@@ -151,10 +169,10 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
         )}
         <div className="flex flex-wrap gap-4">
           <button disabled={busy || status !== 'ready'} onClick={startCalibration} className={buttonClass(true)}>
-            Calibrate (about 15 s)
+            Calibrate (about 16 s)
           </button>
           <button disabled={busy || status !== 'ready'} onClick={startReading} className={buttonClass(false)}>
-            Start 90-second reading test
+            Start 1-minute reading test
           </button>
           <button disabled={busy} onClick={() => onDone(cfg)} className={buttonClass(false)}>
             Save and close
@@ -191,10 +209,6 @@ export function BlinkLab({ initial, onDone }: { initial: BlinkConfig; onDone: (c
   )
 }
 
-function stageLength(name: Stage['name']) {
-  return name === 'natural' ? NATURAL_MS : name === 'held' ? HELD_MS : READ_MS
-}
-
 function buttonClass(primary: boolean) {
   return `min-h-24 rounded-2xl px-8 text-2xl font-bold disabled:opacity-40 ${
     primary ? 'bg-accent text-bg' : 'border-2 border-ink text-ink'
@@ -221,7 +235,7 @@ function ReadingText() {
       </p>
       <p>
         This test measures false selects. Read at your normal speed and blink as you normally do. Move your head a
-        little, as you do when you read. At the end of 90 seconds, the screen shows the number of selects that
+        little, as you do when you read. At the end of 1 minute, the screen shows the number of selects that
         occurred. Zero false selects is a pass. The test also raises the hold time if a natural blink came close to it.
       </p>
       <p>
