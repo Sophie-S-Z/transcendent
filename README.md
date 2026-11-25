@@ -70,6 +70,8 @@ npm run test:extension
 npx vite preview --port 4173 & npm run simulate
 ```
 
+The two browser tests use `playwright-core`. Set `CHROME` to the path of a Chrome or Chromium binary, or run `npx playwright install chromium` once.
+
 ## Stack
 
 TypeScript, React, Vite, Tailwind CSS, MediaPipe Face Landmarker, WebLLM, Paper Shaders (the backdrop and the metal mark), Tauri (the Windows switch), Familjen Grotesk and IBM Plex Mono. The face model is in `public/models`. The MediaPipe WebAssembly files are copied from `node_modules` on install.

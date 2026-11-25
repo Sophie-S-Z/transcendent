@@ -5,9 +5,8 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { extname, join, normalize } from 'node:path'
-import { createRequire } from 'node:module'
+import { chromium } from 'playwright-core'
 
-const { chromium } = createRequire(import.meta.url)('playwright')
 const here = import.meta.dirname
 const dist = join(here, 'dist')
 if (!existsSync(join(dist, 'manifest.json'))) throw new Error('Run npm run build:extension first.')
@@ -30,7 +29,8 @@ await new Promise((r) => server.listen(0, 'localhost', r))
 const base = `http://localhost:${server.address().port}`
 
 const context = await chromium.launchPersistentContext('', {
-  channel: 'chromium',
+  // CHROME names a Chromium binary. Without it, Playwright uses its own installed Chromium.
+  ...(process.env.CHROME ? { executablePath: process.env.CHROME } : { channel: 'chromium' }),
   headless: true,
   args: [`--disable-extensions-except=${ext}`, `--load-extension=${ext}`],
 })
