@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+  Demo mail site for the Transcendent extension. Local only: no external requests.
+  Phase 1 gate tasks:
+  1. Open the message from Maya Chen, "Lunch on Friday?".
+  2. Reply to Maya with the text "see you at noon" and send it. The reply appears in Sent.
+  3. Archive the message from Northside Bank.
+  4. Search the mail for "invoice".
+  5. Move to the next page of the inbox.
+  Send and Delete are irreversible by the risk check, so the panel asks to confirm them.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Post Office Mail</title>
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <header>
+      <span class="brand">Post Office</span>
+      <form id="search" role="search">
+        <input id="q" type="search" aria-label="Search mail" placeholder="Search mail" />
+        <button>Search</button>
+      </form>
+    </header>
+    <div class="layout">
+      <nav aria-label="Folders">
+        <ul>
+          <li><a href="#inbox" data-folder="inbox">Inbox</a></li>
+          <li><a href="#sent" data-folder="sent">Sent</a></li>
+          <li><a href="#archive" data-folder="archive">Archive</a></li>
+        </ul>
+      </nav>
+      <main id="view"></main>
+    </div>
+    <script>
+      // Fakes a mail account in this page. State lives in memory; the address bar hash picks the view.
+      const mails = [
+        ['m1', 'Maya Chen', 'Lunch on Friday?', 'Hi! Are you free for lunch on Friday? The new place on Elm Street opens at noon.'],
+        ['m2', 'Northside Bank', 'Your monthly statement is ready', 'Your statement for October is ready to view in online banking.'],
+        ['m3', 'Dr. Okafor’s office', 'Appointment reminder', 'This is a reminder of your appointment on Tuesday at 10:30.'],
+        ['m4', 'Sam Rivera', 'Photos from the weekend', 'I put the photos from the lake in our shared album. The sunset ones came out well.'],
+        ['m5', 'Green Grocer', 'Invoice 4471 for your order', 'Thank you for shopping with us. Invoice 4471 is attached for your records.'],
+        ['m6', 'Book Club', 'Next book: The Overstory', 'We meet on the 14th. Bring snacks if you can.'],
+        ['m7', 'City Library', 'Your hold is ready', 'The book you asked for is at the front desk until Monday.'],
+        ['m8', 'Leo Park', 'Invoice for the garden work', 'Here is the invoice for last week. No rush.'],
+        ['m9', 'Pharmacy', 'Prescription ready for pickup', 'Your prescription is ready at the counter.'],
+      ].map(([id, from, subject, body]) => ({ id, from, subject, body, folder: 'inbox', unread: true }))
+      const PER_PAGE = 6
+      let query = ''
+
+      const el = (tag, props = {}, ...kids) => {
+        const e = Object.assign(document.createElement(tag), props)
+        e.append(...kids)
+        return e
+      }
+
+      function list(items, page, folder) {
+        const ul = el('ul', { className: 'list' })
+        for (const m of items.slice(page * PER_PAGE, (page + 1) * PER_PAGE))
+          ul.append(
+            el('li', { className: m.unread ? 'unread' : '' },
+              el('a', { href: `#m/${m.id}` }, el('span', { className: 'from', textContent: m.from }), el('span', { className: 'subject', textContent: m.subject }))),
+          )
+        if (!items.length) ul.append(el('li', {}, el('p', { className: 'muted', style: 'padding:12px 16px', textContent: 'No messages.' })))
+        const pages = Math.ceil(items.length / PER_PAGE)
+        const bar = el('div', { className: 'toolbar' }, el('span', { className: 'muted', textContent: `Page ${page + 1} of ${Math.max(1, pages)}` }))
+        if (page > 0) bar.append(el('a', { className: 'button', href: `#${folder}/${page - 1}`, textContent: 'Previous page' }))
+        if (page + 1 < pages) bar.append(el('a', { className: 'button', href: `#${folder}/${page + 1}`, textContent: 'Next page' }))
+        return [ul, bar]
+      }
+
+      function render() {
+        const [route, arg] = location.hash.slice(1).split('/')
+        const view = document.getElementById('view')
+        const folder = ['inbox', 'sent', 'archive'].includes(route) ? route : route === 'search' ? null : 'inbox'
+        for (const a of document.querySelectorAll('[data-folder]'))
+          a.toggleAttribute('aria-current', a.dataset.folder === (folder ?? ''))
+        view.replaceChildren()
+        if (route === 'm' || route === 'reply') {
+          const m = mails.find((x) => x.id === arg)
+          if (!m) return (location.hash = '#inbox')
+          m.unread = false
+          const card = el('article', { className: 'card' },
+            el('h1', { textContent: m.subject }),
+            el('p', { className: 'muted', textContent: `From ${m.from}` }),
+            el('p', { textContent: m.body }))
+          const bar = el('div', { className: 'toolbar' },
+            el('a', { className: 'button', href: '#inbox', textContent: 'Back to inbox' }),
+            el('a', { className: 'button', href: `#reply/${m.id}`, textContent: 'Reply' }),
+            el('button', { textContent: 'Archive', onclick: () => ((m.folder = 'archive'), (location.hash = '#inbox')) }),
+            el('button', { textContent: 'Delete', onclick: () => (mails.splice(mails.indexOf(m), 1), (location.hash = '#inbox')) }))
+          view.append(bar, card)
+          if (route === 'reply') {
+            const text = el('textarea', { id: 'reply', rows: 5, style: 'width:100%' })
+            const form = el('form', { className: 'card', style: 'margin-top:16px' },
+              el('label', { htmlFor: 'reply' }, `Reply to ${m.from}`), text,
+              el('div', { className: 'toolbar' },
+                el('button', { className: 'primary', textContent: 'Send' }),
+                el('a', { className: 'button', href: `#m/${m.id}`, textContent: 'Discard' })))
+            form.onsubmit = (e) => {
+              e.preventDefault()
+              if (!text.value.trim()) return
+              mails.push({ id: `s${mails.length + 1}`, from: 'To ' + m.from, subject: `Re: ${m.subject}`, body: text.value, folder: 'sent', unread: false })
+              location.hash = '#sent'
+            }
+            view.append(form)
+            text.focus()
+          }
+          return
+        }
+        if (route === 'search') {
+          const q = decodeURIComponent(arg ?? '').toLowerCase()
+          const found = mails.filter((m) => `${m.from} ${m.subject} ${m.body}`.toLowerCase().includes(q))
+          view.append(el('h1', { textContent: `Results for “${q}”` }), ...list(found, 0, 'search'))
+          return
+        }
+        const page = Number(arg) || 0
+        const items = mails.filter((m) => m.folder === folder)
+        view.append(el('h1', { textContent: folder[0].toUpperCase() + folder.slice(1) }), ...list(items, page, folder))
+      }
+
+      document.getElementById('search').onsubmit = (e) => {
+        e.preventDefault()
+        query = document.getElementById('q').value.trim()
+        if (query) location.hash = `#search/${encodeURIComponent(query)}`
+      }
+      addEventListener('hashchange', render)
+      render()
+    </script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { initialBlink, stepBlink, type BlinkConfig } from './blink'
+import { stepHold } from './hold'
 import { useFaceBlink } from './useFaceBlink'
 
 const NO_FACE_PAUSE_MS = 2000
@@ -8,16 +9,20 @@ const NO_FACE_PAUSE_MS = 2000
  * One "select" signal from a held blink or from any key (T3).
  * The app pauses when the camera sees no face for 2 seconds (T4).
  * During the pause, the next select only ends the pause.
+ * With onLong, a held blink selects when the eyes open, and a hold of 3 seconds calls onLong and selects nothing.
  */
-export function useSignal(onSelect: () => void, blink: BlinkConfig, camera: boolean) {
+export function useSignal(onSelect: () => void, blink: BlinkConfig, camera: boolean, onLong?: () => void) {
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
   const machine = useRef(initialBlink)
+  const hold = useRef({ start: 0, toggled: false })
   const lastFace = useRef<number | null>(null)
   const pausedRef = useRef(false)
   const onSelectRef = useRef(onSelect)
+  const onLongRef = useRef(onLong)
   useEffect(() => {
     onSelectRef.current = onSelect
+    onLongRef.current = onLong
   })
 
   const signal = () => {
@@ -55,9 +60,14 @@ export function useSignal(onSelect: () => void, blink: BlinkConfig, camera: bool
     }
     lastFace.current = t
     const r = stepBlink(machine.current, score, t, blink)
-    machine.current = r.state
     setProgress(r.progress)
-    if (r.select) signal()
+    if (onLongRef.current) {
+      const h = stepHold(hold.current, machine.current.phase, r.state.phase, t)
+      hold.current = h.hold
+      if (h.action === 'press') signal()
+      if (h.action === 'toggle') onLongRef.current()
+    } else if (r.select) signal()
+    machine.current = r.state
   }, camera)
 
   return { videoRef, status, error, progress, paused }

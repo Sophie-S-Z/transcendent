@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  Demo shop for the Transcendent extension. Local only: no external requests, and nothing is sold.
+  Phase 1 gate tasks:
+  1. Search for "tea".
+  2. Open the product "Green tea, 50 bags".
+  3. Add it to the cart. The cart count goes up.
+  4. Open the cart and remove one item.
+  5. Go to checkout. The checkout page has card fields, so the extension refuses every action except scroll and back.
+  "Checkout" and "Remove" are irreversible by the risk check, so the panel asks to confirm them.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Corner Market</title>
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#home" style="color: inherit; text-decoration: none">Corner Market</a>
+      <form id="search" role="search">
+        <input id="q" type="search" aria-label="Search the shop" placeholder="Search the shop" />
+        <button>Search</button>
+      </form>
+      <a class="button" href="#cart" id="cart-link">Cart (0)</a>
+    </header>
+    <main id="view" style="padding: 24px"></main>
+    <script>
+      // Fakes a shop in this page. The cart lives in session storage, so checkout.html can show it.
+      const products = [
+        ['p1', 'Green tea, 50 bags', 4.5, 'A mild green tea from Shizuoka.'],
+        ['p2', 'Black tea, loose leaf', 6.25, 'Strong Assam tea for the morning.'],
+        ['p3', 'Oat milk, 1 litre', 2.1, 'Barista style. Froths well.'],
+        ['p4', 'Rye bread', 3.4, 'Baked this morning by Elm Street Bakery.'],
+        ['p5', 'Honey, 340 g', 5.9, 'Wildflower honey from local hives.'],
+        ['p6', 'Ginger biscuits', 2.75, 'Crisp and spicy.'],
+      ].map(([id, name, price, about]) => ({ id, name, price, about }))
+      const cart = JSON.parse(sessionStorage.getItem('cart') ?? '[]')
+      const save = () => {
+        sessionStorage.setItem('cart', JSON.stringify(cart))
+        document.getElementById('cart-link').textContent = `Cart (${cart.length})`
+      }
+      const money = (n) => `£${n.toFixed(2)}`
+      const el = (tag, props = {}, ...kids) => {
+        const e = Object.assign(document.createElement(tag), props)
+        e.append(...kids)
+        return e
+      }
+
+      function render() {
+        const [route, arg] = location.hash.slice(1).split('/')
+        const view = document.getElementById('view')
+        view.replaceChildren()
+        if (route === 'product') {
+          const p = products.find((x) => x.id === arg)
+          if (!p) return (location.hash = '#home')
+          const added = el('p', { className: 'muted' })
+          view.append(
+            el('a', { className: 'button', href: '#home', textContent: 'All products' }),
+            el('article', { className: 'card', style: 'margin-top:16px;max-width:560px' },
+              el('div', { className: 'thumb', textContent: p.name }),
+              el('h1', { textContent: p.name }),
+              el('p', { textContent: `${money(p.price)}. ${p.about}` }),
+              el('button', { className: 'primary', textContent: 'Add to cart', onclick: () => (cart.push(p.id), save(), (added.textContent = 'Added to your cart.')) }),
+              added),
+          )
+          return
+        }
+        if (route === 'cart') {
+          const items = cart.map((id) => products.find((p) => p.id === id))
+          const ul = el('ul', { className: 'list', style: 'max-width:560px' })
+          items.forEach((p, i) =>
+            ul.append(
+              el('li', { style: 'display:flex;justify-content:space-between;align-items:center;padding:8px 16px' },
+                el('span', { textContent: `${p.name}, ${money(p.price)}` }),
+                el('button', { textContent: 'Remove', ariaLabel: `Remove ${p.name}`, onclick: () => (cart.splice(i, 1), save(), render()) })),
+            ),
+          )
+          const total = items.reduce((s, p) => s + p.price, 0)
+          view.append(el('h1', { textContent: 'Your cart' }), items.length ? ul : el('p', { textContent: 'Your cart is empty.' }),
+            el('p', { textContent: `Total ${money(total)}` }))
+          if (items.length) view.append(el('a', { className: 'button primary', href: 'checkout.html', textContent: 'Checkout' }))
+          return
+        }
+        const q = route === 'search' ? decodeURIComponent(arg ?? '').toLowerCase() : ''
+        const shown = products.filter((p) => p.name.toLowerCase().includes(q))
+        view.append(
+          el('h1', { textContent: q ? `Results for “${q}”` : 'This week' }),
+          el('div', { className: 'grid' },
+            ...shown.map((p) =>
+              el('a', { href: `#product/${p.id}`, className: 'card', style: 'color:inherit;text-decoration:none' },
+                el('div', { className: 'thumb', textContent: money(p.price) }),
+                el('p', { style: 'margin:8px 0 0;font-weight:600', textContent: p.name })),
+            )),
+        )
+      }
+
+      document.getElementById('search').onsubmit = (e) => {
+        e.preventDefault()
+        const q = document.getElementById('q').value.trim()
+        if (q) location.hash = `#search/${encodeURIComponent(q)}`
+      }
+      addEventListener('hashchange', render)
+      save()
+      render()
+    </script>
+  </body>
+</html>
