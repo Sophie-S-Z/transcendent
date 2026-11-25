@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sampleWorkspace } from '../core/sample'
 import { validActions, type Workspace } from '../core/workspace'
-import { acceptWord, DELETE, DONE, draftsFor, KEY_ROWS, nextWords, SPACE, typeKey } from './entry'
+import { acceptWord, DELETE, DONE, draftsFor, KEY_ROWS, keyItems, nextWords, SPACE, typeKey } from './entry'
 
 const ws = sampleWorkspace()
 const action = (state: Workspace, id: string) => validActions(state).find((a) => a.id === id)!
@@ -77,5 +77,29 @@ describe('acceptWord', () => {
   it('replaces the partial word and adds a space', () => {
     expect(acceptWord('I need wa', 'water')).toBe('I need water ')
     expect(acceptWord('I need ', 'water')).toBe('I need water ')
+  })
+})
+
+describe('keyItems', () => {
+  const run = (text: string, row: number | null, label: string) => {
+    const calls: unknown[] = []
+    const items = keyItems(text, row, (t, r) => calls.push([t, r]), () => calls.push('done'))
+    items.find((i) => i.label === label)!.run()
+    return calls
+  }
+
+  it('lists the rows, and a row item opens that row', () => {
+    expect(keyItems('hi', null, () => {}, () => {}).map((i) => i.label)).toEqual(KEY_ROWS.map((r) => r.join(' ')))
+    expect(run('hi', null, KEY_ROWS[2].join(' '))).toEqual([['hi', 2]])
+  })
+
+  it('types a key and returns to the row list', () => {
+    expect(run('hi', 1, 'o')).toEqual([['hio', null]])
+    expect(run('hi', 0, DELETE)).toEqual([['h', null]])
+  })
+
+  it('finishes only when the text is not empty', () => {
+    expect(run('hi', 0, DONE)).toEqual(['done'])
+    expect(run('  ', 0, DONE)).toEqual([])
   })
 })

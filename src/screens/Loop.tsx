@@ -2,14 +2,15 @@
 // A highlight moves through a list of items. One select runs the highlighted item.
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { countKey, rankActions, type Counts } from '../core/predict'
-import { loadEngine, rankWithModel, type Engine } from '../core/tier1'
+import { loadEngine, rankWithModel, useModelRanking, type Engine } from '../core/tier1'
 import { applyAction, helpAction, validActions, type Action, type Workspace } from '../core/workspace'
 import { appendLog, MODE_LABEL, SESSION, testerName } from '../eval/log'
 import { scenarioById, type Scenario } from '../eval/scenarios'
 import type { Task } from '../eval/tasks'
+import { useScan, useScanTimer } from '../input/useScan'
 import { useSignal } from '../input/useSignal'
 import type { Settings } from '../settings'
-import { acceptWord, DONE, draftsFor, KEY_ROWS, nextWords, typeKey } from '../text/entry'
+import { acceptWord, draftsFor, keyItems, nextWords } from '../text/entry'
 import { Card } from '../ui/Card'
 import { click } from '../ui/click'
 import { WorkspaceView } from './WorkspaceView'
@@ -37,7 +38,6 @@ type Trial = {
 }
 
 const UNDO_MS = 5000
-const MODEL_WAIT_MS = 1500
 const SHOWN = 4 // predicted cards. "Something else" is the fifth.
 
 // "Something else" groups every valid action. Help has its own item in every cycle.
@@ -61,9 +61,8 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   const baseline = mode === 'baseline'
   const scenario = scenarioById(settings.scenario)
   const [ws, setWs] = useState(scenario.workspace)
-  const [layer, setLayer] = useState<Layer>({ kind: 'home' })
-  const [index, setIndex] = useState(0)
-  const [version, setVersion] = useState(0)
+  const scan = useScan<Layer>({ kind: 'home' })
+  const { layer, index, setIndex, version, go, now } = scan
   const [history, setHistory] = useState<Workspace[]>([])
   const [undo, setUndo] = useState<string | null>(null)
   const [glow, setGlow] = useState(false)
@@ -71,8 +70,6 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   const [holdout, setHoldout] = useState('')
   const [counts, setCounts] = useState<Counts>({})
 
-  // The scan timer and async callbacks read the current screen from this ref.
-  const scan = useRef({ index, count: 0, layer })
   // Tier 1 loads while the user works. Until it is ready, Tier 0 ranks (T16).
   const [engine, setEngine] = useState<Engine | null>(null)
   const [modelStatus, setModelStatus] = useState('')
@@ -88,44 +85,13 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   }, [mode])
 
   const tier0 = useMemo(() => rankActions(ws, counts), [ws, counts])
-  const [model, setModel] = useState<{ ws: Workspace; ids: string[] } | null>(null)
-  useEffect(() => {
-    if (!engine) return
-    let live = true
-    let pending = true
-    let timer = 0
-    // After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
-    const timeout = new Promise<null>((resolve) => {
-      timer = window.setTimeout(() => resolve(null), MODEL_WAIT_MS)
-    })
-    Promise.race([rankWithModel(engine, ws, tier0), timeout])
-      .catch(() => [])
-      .then((ids) => {
-        if (ids === null) engine.interruptGenerate()
-        pending = false
-        clearTimeout(timer)
-        if (!live) return
-        setModel({ ws, ids: ids ?? [] })
-        if (scan.current.layer.kind === 'home') {
-          setIndex(0)
-          setVersion((v) => v + 1)
-        }
-      })
-    return () => {
-      live = false
-      clearTimeout(timer)
-      if (pending) engine.interruptGenerate()
-      pending = false
-    }
-  }, [engine, ws, tier0])
-  const ranked = engine ? (model?.ws === ws ? merge(model.ids, tier0) : null) : tier0
+  // After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
+  const ids = useModelRanking(engine, tier0, (e) => rankWithModel(e, ws, tier0), () => {
+    if (layer.kind === 'home') scan.restart()
+  })
+  const ranked = ids && merge(ids, tier0)
   const thinking = ranked === null
 
-  const go = (next: Layer) => {
-    setLayer(next)
-    setIndex(0)
-    setVersion((v) => v + 1)
-  }
   const home = () => go({ kind: 'home' })
   type Counter = 'signals' | 'errors' | 'steps' | 'topHits' | 'top5Hits'
   const addToTrial = (change: Partial<Record<Counter, number>>) =>
@@ -185,10 +151,10 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
     // The Undo item is first on the home screen. When it goes, the highlight stays on the same item.
     const id = setTimeout(() => {
       setUndo(null)
-      if (scan.current.layer.kind === 'home') setIndex((i) => Math.max(0, i - 1))
+      if (now.current.kind === 'home') setIndex((i) => Math.max(0, i - 1))
     }, UNDO_MS)
     return () => clearTimeout(id)
-  }, [undo, history])
+  }, [undo, history, now, setIndex])
 
   const doUndo = () => {
     setWs(history.at(-1)!)
@@ -231,15 +197,12 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
           { label: 'Cancel', run: cancel },
         ]
       case 'typing': {
-        const type = (text: string) => go({ ...layer, text, row: null })
-        if (layer.row !== null)
-          return KEY_ROWS[layer.row].map((k) => ({
-            label: k,
-            run: () => (k === DONE ? layer.text.trim() && withText(layer.action, layer.text) : type(typeKey(layer.text, k))),
-          }))
+        const set = (text: string, row: number | null) => go({ ...layer, text, row })
+        const keys = keyItems(layer.text, layer.row, set, () => withText(layer.action, layer.text))
+        if (layer.row !== null) return keys
         return [
-          ...(baseline ? [] : nextWords(layer.text, ws).map((w) => ({ label: w, run: () => type(acceptWord(layer.text, w)) }))),
-          ...KEY_ROWS.map((row, i) => ({ label: row.join(' '), run: () => go({ ...layer, row: i }) })),
+          ...(baseline ? [] : nextWords(layer.text, ws).map((w) => ({ label: w, run: () => set(acceptWord(layer.text, w), null) }))),
+          ...keys,
           { label: 'Cancel', run: cancel },
         ]
       }
@@ -265,19 +228,7 @@ export function Loop({ settings, session, onExit }: { settings: Settings; sessio
   const { videoRef, progress, paused, status, error } = useSignal(onSelect, settings.blink, settings.camera)
 
   // The highlight moves in rank order at the speed the user sets (T7).
-  // In a keyboard row, one full pass with no select returns to the row list.
-  useEffect(() => {
-    scan.current = { index, count: items.length, layer }
-  })
-  useEffect(() => {
-    if (paused) return
-    const id = setInterval(() => {
-      const { index: i, count, layer: l } = scan.current
-      if (i + 1 >= count && l.kind === 'typing' && l.row !== null) go({ ...l, row: null })
-      else setIndex((i + 1) % count)
-    }, stepMs)
-    return () => clearInterval(id)
-  }, [version, paused, stepMs])
+  useScanTimer(scan, items.length, stepMs, paused)
 
   const startTrial = (task: Task) => {
     setWs(task.start())

@@ -3,6 +3,7 @@
 // The extension uses rankList with a description of the web page.
 
 import type { MLCEngineInterface } from '@mlc-ai/web-llm'
+import { useEffect, useRef, useState } from 'react'
 import { filterValid, type Action, type Workspace } from './workspace'
 
 export type Engine = MLCEngineInterface
@@ -58,4 +59,46 @@ export async function rankList(engine: Engine, description: string, actions: { i
 /** Ranks the workspace actions. Returns valid IDs, best first, through filterValid. */
 export async function rankWithModel(engine: Engine, ws: Workspace, actions: Action[]): Promise<string[]> {
   return filterValid(ws, await rankList(engine, describe(ws), actions)).map((a) => a.id)
+}
+
+const MODEL_WAIT_MS = 1500
+
+/**
+ * Asks the model each time key changes, and returns its IDs for the current key.
+ * Returns null while the model works, and [] with no engine. After 1.5 s the model stops and the answer is [], so Tier 0 ranks.
+ * onAnswer runs after each answer. A new key or an unmount stops the open request.
+ */
+export function useModelRanking(engine: Engine | null, key: unknown, ask: (engine: Engine) => Promise<string[]>, onAnswer: () => void) {
+  const [answer, setAnswer] = useState<{ key: unknown; ids: string[] } | null>(null)
+  const latest = useRef({ ask, onAnswer })
+  useEffect(() => {
+    latest.current = { ask, onAnswer }
+  })
+  useEffect(() => {
+    if (!engine) return
+    let live = true
+    let pending = true
+    let timer = 0
+    const timeout = new Promise<null>((resolve) => {
+      timer = window.setTimeout(() => resolve(null), MODEL_WAIT_MS)
+    })
+    Promise.race([latest.current.ask(engine), timeout])
+      .catch(() => [])
+      .then((ids) => {
+        if (ids === null) engine.interruptGenerate()
+        pending = false
+        clearTimeout(timer)
+        if (!live) return
+        setAnswer({ key, ids: ids ?? [] })
+        latest.current.onAnswer()
+      })
+    return () => {
+      live = false
+      clearTimeout(timer)
+      if (pending) engine.interruptGenerate()
+      pending = false
+    }
+  }, [engine, key])
+  if (!engine) return []
+  return answer && answer.key === key ? answer.ids : null
 }

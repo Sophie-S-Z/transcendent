@@ -4,11 +4,12 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { rankTier0 } from '../src/core/actions'
 import { toCsv } from '../src/core/csv'
-import { loadEngine, rankList, type Engine } from '../src/core/tier1'
+import { loadEngine, rankList, useModelRanking, type Engine } from '../src/core/tier1'
 import { DEFAULT_CONFIG, type BlinkConfig } from '../src/input/blink'
+import { useScan, useScanTimer } from '../src/input/useScan'
 import { useSignal } from '../src/input/useSignal'
 import { STEP_MAX_MS, STEP_MIN_MS } from '../src/settings'
-import { DONE, KEY_ROWS, typeKey } from '../src/text/entry'
+import { keyItems } from '../src/text/entry'
 import { Card } from '../src/ui/Card'
 import { click } from '../src/ui/click'
 import { Ring } from '../src/ui/Ring'
@@ -37,7 +38,6 @@ type Item = { label: string; run: () => void; target?: string }
 
 const DEFAULTS: Settings = { camera: true, stepMs: 1200, blink: DEFAULT_CONFIG, model: false }
 const SHOWN = 4
-const MODEL_WAIT_MS = 1500
 // A short list keeps the model inside its 1.5 seconds.
 const MODEL_LIST = 30
 const NO_WEBGPU = 'This computer cannot run WebGPU, so the built-in ranker orders the actions.'
@@ -317,9 +317,8 @@ function Setup({
 function Scan({ tab, origin, settings, engine }: { tab: Tab; origin: string | null; settings: Settings; engine: Engine | null }) {
   const site = origin ?? ''
   const [page, setPage] = useState<PageState | null>(null)
-  const [layer, setLayer] = useState<Layer>({ kind: 'home' })
-  const [index, setIndex] = useState(0)
-  const [version, setVersion] = useState(0)
+  const scan = useScan<Layer>({ kind: 'home' })
+  const { layer, index, version, go } = scan
   const [notice, setNotice] = useState('')
   const [glow, setGlow] = useState(false)
   const [allCounts, setAllCounts] = useStored<Record<string, Record<string, number>>>('counts', {})
@@ -330,21 +329,24 @@ function Scan({ tab, origin, settings, engine }: { tab: Tab; origin: string | nu
   // The action that the page runs next. An effect sends it, because render code does not touch the connection.
   const [request, setRequest] = useState<{ action: PageAction; text?: string; confirmed: boolean } | null>(null)
 
-  const go = (next: Layer) => {
-    setLayer(next)
-    setIndex(0)
-    setVersion((v) => v + 1)
-  }
   const home = () => go({ kind: 'home' })
   // The highlight effect below removes the outline on the page.
   const stop = () => go({ kind: 'paused' })
 
   const actions = useMemo(() => (page ? page.actions.filter((a) => !page.payments || allowedWithPayments(a.kind)) : []), [page])
   const tier0 = useMemo(() => rankTier0(actions, counts), [actions, counts])
-  // The model answer is for one list. Until it comes, the home screen shows no action cards.
-  const [model, setModel] = useState<{ list: string; ids: string[] } | null>(null)
+  // Each new list asks the model. The answer is for one list. Until it comes, the home screen shows no action cards.
+  // After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
   const list = page ? listOf(page) : ''
-  const ranked = engine ? (model?.list === list ? mergeRanking(model.ids, tier0) : null) : tier0
+  const ids = useModelRanking(
+    page ? engine : null,
+    list,
+    (e) => rankList(e, page!.description, tier0.filter((a) => a.risk === 'safe').slice(0, MODEL_LIST)),
+    () => {
+      if (layer.kind === 'home') scan.restart()
+    },
+  )
+  const ranked = ids && mergeRanking(ids, tier0)
 
   const done = (a: PageAction) => {
     addLog({ time: new Date().toISOString(), site, label: a.label, risk: a.risk })
@@ -445,13 +447,8 @@ function Scan({ tab, origin, settings, engine }: { tab: Tab; origin: string | nu
         return [...actions.filter(test).map(toItem), { label: 'Back', run: () => go({ kind: 'groups' }) }]
       }
       case 'typing': {
-        const type = (text: string) => go({ ...layer, text, row: null })
-        if (layer.row !== null)
-          return KEY_ROWS[layer.row].map((k) => ({
-            label: k,
-            run: () => (k === DONE ? layer.text.trim() && execute(layer.action, layer.text) : type(typeKey(layer.text, k))),
-          }))
-        return [...KEY_ROWS.map((r, i) => ({ label: r.join(' '), run: () => go({ ...layer, row: i }) })), { label: 'Cancel', run: home }]
+        const keys = keyItems(layer.text, layer.row, (text, row) => go({ ...layer, text, row }), () => execute(layer.action, layer.text))
+        return layer.row !== null ? keys : [...keys, { label: 'Cancel', run: home }]
       }
       case 'confirm':
         // Cancel is first, so a fast double signal cannot confirm.
@@ -499,58 +496,8 @@ function Scan({ tab, origin, settings, engine }: { tab: Tab; origin: string | nu
     port.current?.postMessage({ type: 'highlight', id: target } satisfies ToPage)
   }, [target, page])
 
-  // The highlight moves at the speed the user sets. In a keyboard row, one full pass returns to the row list.
-  const scan = useRef({ index, count: items.length, layer })
-  useEffect(() => {
-    scan.current = { index, count: items.length, layer }
-  })
-  const stopped = layer.kind === 'paused' || paused
-  useEffect(() => {
-    if (stopped) return
-    const id = setInterval(() => {
-      const { index: i, count, layer: l } = scan.current
-      if (i + 1 >= count && l.kind === 'typing' && l.row !== null) go({ ...l, row: null })
-      else setIndex((i + 1) % count)
-    }, settings.stepMs)
-    return () => clearInterval(id)
-  }, [version, stopped, settings.stepMs])
-
-  // Each new list asks the model. After 1.5 s the model stops, and Tier 0 ranks. The scan starts again on the first card.
-  // The model reads the newest page from a ref, so a new state with the same list does not ask again.
-  const latest = useRef({ page, tier0 })
-  useEffect(() => {
-    latest.current = { page, tier0 }
-  })
-  useEffect(() => {
-    const now = latest.current
-    if (!engine || !now.page) return
-    let live = true
-    let pending = true
-    let timer = 0
-    const timeout = new Promise<null>((resolve) => {
-      timer = window.setTimeout(() => resolve(null), MODEL_WAIT_MS)
-    })
-    const safe = now.tier0.filter((a) => a.risk === 'safe').slice(0, MODEL_LIST)
-    Promise.race([rankList(engine, now.page.description, safe), timeout])
-      .catch(() => [])
-      .then((ids) => {
-        if (ids === null) engine.interruptGenerate()
-        pending = false
-        clearTimeout(timer)
-        if (!live) return
-        setModel({ list, ids: ids ?? [] })
-        if (scan.current.layer.kind === 'home') {
-          setIndex(0)
-          setVersion((v) => v + 1)
-        }
-      })
-    return () => {
-      live = false
-      clearTimeout(timer)
-      if (pending) engine.interruptGenerate()
-      pending = false
-    }
-  }, [engine, list])
+  // The highlight moves at the speed the user sets.
+  useScanTimer(scan, items.length, settings.stepMs, layer.kind === 'paused' || paused)
 
   const title = {
     home: 'Next action',
